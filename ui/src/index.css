@@ -57,13 +57,3 @@
     @apply bg-background text-foreground;
   }
 }
-
-@layer utilities {
-  .is-windows .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .is-windows .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-}

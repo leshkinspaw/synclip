@@ -202,7 +202,7 @@ export default function Devices() {
           </CardTitle>
           <CardDescription>{devices.length} device(s) in group</CardDescription>
         </CardHeader>
-        <CardContent className="flex-1 overflow-y-auto min-h-0 no-scrollbar">
+        <CardContent className="flex-1 overflow-y-auto min-h-0">
           <div className="space-y-4 pr-1">
             {devices.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">No other devices online.</p>

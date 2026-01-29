@@ -109,7 +109,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="p-4 flex flex-col h-full space-y-4 overflow-y-auto no-scrollbar">
+    <div className="p-4 flex flex-col h-full space-y-4 overflow-y-auto">
       <Card className="shrink-0">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
