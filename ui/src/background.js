@@ -87,7 +87,7 @@ async function initSync() {
     console.log("This device was excluded from the sync group");
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: 'icon64.png',
+      iconUrl: 'icon48.png',
       title: 'SynClip',
       message: 'This device was excluded from the sync group.'
     });
@@ -117,7 +117,7 @@ async function initSync() {
         console.log("Clipboard updated from remote");
         chrome.notifications.create({
             type: 'basic',
-            iconUrl: 'icon64.png',
+            iconUrl: 'icon48.png',
             title: 'SynClip',
             message: 'Clipboard updated from another device'
         });
