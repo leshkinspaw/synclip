@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -6,6 +6,25 @@ import Devices from './pages/Devices'
 import Settings from './pages/Settings'
 
 function App() {
+  const [isWindows, setIsWindows] = useState(false);
+
+  useEffect(() => {
+    // Detect Windows platform
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getPlatformInfo) {
+      chrome.runtime.getPlatformInfo((info) => {
+        if (info.os === 'win') {
+          setIsWindows(true);
+        }
+      });
+    } else {
+      // Fallback for development
+      const platform = navigator.platform.toLowerCase();
+      if (platform.includes('win')) {
+        setIsWindows(true);
+      }
+    }
+  }, []);
+
   return (
     <ThemeProvider defaultTheme="system" storageKey="synclip-theme">
       <TooltipProvider>
