@@ -7,7 +7,7 @@ export const useStatusStore = create((set, get) => ({
   devices: [],
   myId: '',
   deviceName: '',
-  pollInterval: 1.2,
+  pollInterval: 1,
 
   updateStatus: (data) => set((state) => ({ ...state, ...data })),
 
