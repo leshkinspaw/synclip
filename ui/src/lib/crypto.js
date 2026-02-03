@@ -2,7 +2,7 @@ import * as bip39 from 'bip39';
 import CryptoJS from 'crypto-js';
 
 export const generateSeedPhrase = () => {
-  return bip39.generateMnemonic();
+  return bip39.generateMnemonic(256);
 };
 
 export const validateSeedPhrase = (mnemonic) => {

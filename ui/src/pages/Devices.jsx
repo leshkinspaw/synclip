@@ -51,12 +51,11 @@ export default function Devices() {
   const [editSeedPhrase, setEditSeedPhrase] = useState("");
   const [isCopied, setIsCopied] = useState(false);
 
-  const formatSeed = (phrase) => {
-    if (!phrase) return "No seed phrase set";
-    const words = phrase.trim().split(/\s+/);
-    if (words.length <= 2) return phrase;
-    return `${words[0]} ${words[1]}...`;
-  };
+  const formatSeed = (phrase, maxWords = 6) =>
+      phrase?.trim()
+          ?.split(/\s+/)
+          .slice(0, maxWords)
+          .join(" ") || "";
 
   useEffect(() => {
     loadMyData();
@@ -198,7 +197,7 @@ export default function Devices() {
               <TooltipTrigger asChild>
                 <div className={`flex items-center gap-1 text-xs font-medium cursor-default ${getStatusColor()}`}>
                   {getStatusIcon()}
-                  {status === "no_seed" ? "NO SEED" : status.toUpperCase()}
+                  {status === "no_seed" ? "NO_SEED" : status.toUpperCase()}
                 </div>
               </TooltipTrigger>
               {status === "error" && lastError && (
@@ -310,9 +309,9 @@ export default function Devices() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">{formatSeed(seedPhrase)}</span>
-              <span className="text-[10px] text-muted-foreground">12 or 24-word sync key</span>
+            <div className="flex flex-col min-w-0 mr-4">
+              <span className="text-sm font-medium truncate">{formatSeed(seedPhrase)}</span>
+              <span className="text-[10px] text-muted-foreground">24-word sync key</span>
             </div>
 
             <div className="flex gap-2">
@@ -325,7 +324,7 @@ export default function Devices() {
               }}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm">
-                    <Edit2 className="w-4 h-4 mr-2" /> Edit
+                    <Edit2 className="w-4 h-4 mr-1" /> {seedPhrase ? "Edit" : "Add"}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
@@ -338,7 +337,7 @@ export default function Devices() {
                   <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                       <textarea
-                          className={`w-full min-h-[80px] p-2 text-sm border rounded-md bg-muted/30 focus:outline-none focus:ring-1 focus:ring-ring ${error ? 'border-destructive' : ''}`}
+                          className={`w-full min-h-[100px] p-2 text-sm border rounded-md bg-muted/30 focus:outline-none focus:ring-1 focus:ring-ring ${error ? 'border-destructive' : ''}`}
                           value={editSeedPhrase}
                           onChange={(e) => {
                             setEditSeedPhrase(e.target.value);
