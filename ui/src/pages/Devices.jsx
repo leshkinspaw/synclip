@@ -28,6 +28,8 @@ import {
   LogOut,
   RefreshCcw,
   Edit2,
+  Copy,
+  Check,
   Wifi,
   WifiOff,
   Key,
@@ -45,6 +47,16 @@ export default function Devices() {
   const [pings, setPings] = useState({}); // socketId -> status
   const [seedPhrase, setSeedPhrase] = useState("");
   const [error, setError] = useState("");
+  const [isSeedDialogOpen, setIsSeedDialogOpen] = useState(false);
+  const [editSeedPhrase, setEditSeedPhrase] = useState("");
+  const [isCopied, setIsCopied] = useState(false);
+
+  const formatSeed = (phrase) => {
+    if (!phrase) return "No seed phrase set";
+    const words = phrase.trim().split(/\s+/);
+    if (words.length <= 2) return phrase;
+    return `${words[0]} ${words[1]}...`;
+  };
 
   useEffect(() => {
     loadMyData();
@@ -133,18 +145,28 @@ export default function Devices() {
 
   const handleSaveSeed = async () => {
     setError("");
-    if (!validateSeedPhrase(seedPhrase)) {
+    if (!validateSeedPhrase(editSeedPhrase)) {
       setError("Please enter a valid 12 or 24 word mnemonic.");
       return;
     }
-    await setStorageData({ seedPhrase });
+    await setStorageData({ seedPhrase: editSeedPhrase });
+    setSeedPhrase(editSeedPhrase);
+    setIsSeedDialogOpen(false);
     chrome.runtime.sendMessage({ type: "RECONNECT" });
   };
 
   const handleGenerate = () => {
     const newSeed = generateSeedPhrase();
-    setSeedPhrase(newSeed);
+    setEditSeedPhrase(newSeed);
     setError("");
+  };
+
+  const handleCopySeed = () => {
+    if (!seedPhrase) return;
+    navigator.clipboard.writeText(seedPhrase).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    });
   };
 
   const getStatusColor = () => {
@@ -287,27 +309,69 @@ export default function Devices() {
           <CardDescription>All devices must share the same seed phrase.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <textarea
-                className={`w-full min-h-[60px] p-2 text-sm border rounded-md bg-muted/30 focus:outline-none focus:ring-1 focus:ring-ring ${error ? 'border-destructive' : ''}`}
-                value={seedPhrase}
-                onChange={(e) => {
-                  setSeedPhrase(e.target.value);
-                  if (error) setError("");
-                }}
-                placeholder="Enter your 12-word seed phrase..."
-            />
-            {error && (
-                <div className="flex items-center gap-2 text-xs text-destructive">
-                  <AlertCircle className="w-3 h-3" />
-                  {error}
-                </div>
-            )}
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">{formatSeed(seedPhrase)}</span>
+              <span className="text-[10px] text-muted-foreground">12 or 24-word sync key</span>
+            </div>
+
+            <div className="flex gap-2">
+              <Dialog open={isSeedDialogOpen} onOpenChange={(open) => {
+                setIsSeedDialogOpen(open);
+                if (open) {
+                  setEditSeedPhrase(seedPhrase);
+                  setError("");
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Edit2 className="w-4 h-4 mr-2" /> Edit
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Sync Group Settings</DialogTitle>
+                    <DialogDescription>
+                      Enter your seed phrase to join a sync group.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                      <textarea
+                          className={`w-full min-h-[80px] p-2 text-sm border rounded-md bg-muted/30 focus:outline-none focus:ring-1 focus:ring-ring ${error ? 'border-destructive' : ''}`}
+                          value={editSeedPhrase}
+                          onChange={(e) => {
+                            setEditSeedPhrase(e.target.value);
+                            if (error) setError("");
+                          }}
+                          placeholder="Enter your seed phrase..."
+                      />
+                      {error && (
+                          <div className="flex items-center gap-2 text-xs text-destructive">
+                            <AlertCircle className="w-3 h-3" />
+                            {error}
+                          </div>
+                      )}
+                    </div>
+                  </div>
+                  <DialogFooter className="flex flex-row gap-2 sm:justify-between">
+                    <Button variant="outline" onClick={handleGenerate} className="flex-1 text-xs">Generate New</Button>
+                    <Button onClick={handleSaveSeed} className="flex-1 text-xs">Save & Sync</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Button
+                  variant="outline"
+                  size="sm"
+                  title="copy seed phrase"
+                  onClick={handleCopySeed}
+              >
+                {isCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleGenerate} className="flex-1 text-xs">Generate New</Button>
-            <Button onClick={handleSaveSeed} className="flex-1 text-xs">Save & Sync</Button>
-          </div>
+
           <Button onClick={handleLeaveGroup} variant="destructive" className="w-full gap-2" size="sm">
             <LogOut className="w-4 h-4" /> Leave Sync Group
           </Button>
