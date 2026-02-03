@@ -188,6 +188,7 @@ export default function Settings() {
                   <div className="text-[10px] leading-relaxed opacity-90 space-y-1">
                     <p>• In Chrome (unless unpacked), alarms fire at most once every 30 seconds.</p>
                     <p>• Setting an interval &lt; 0.5 minutes (30s) causes a warning and defaults to 30s in production.</p>
+                    <p>• Intervals as low as 1s are fully supported in "Unpacked" mode (Developer Mode), offering near-instant sync.</p>
                     <p>• Alarm firings can be arbitrarily delayed. (Before Chrome 120, the limit was 60s).</p>
                   </div>
                 </div>
