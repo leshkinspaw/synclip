@@ -7,6 +7,7 @@ export const useStatusStore = create((set, get) => ({
   devices: [],
   myId: '',
   deviceName: '',
+  pollInterval: 1.2,
 
   updateStatus: (data) => set((state) => ({ ...state, ...data })),
 
@@ -19,7 +20,8 @@ export const useStatusStore = create((set, get) => ({
           lastError: response.lastError || "",
           devices: response.roomDevices || [],
           myId: response.socketId,
-          deviceName: response.deviceName || get().deviceName
+          deviceName: response.deviceName || get().deviceName,
+          pollInterval: response.pollInterval || get().pollInterval
         });
       }
     } catch (error) {

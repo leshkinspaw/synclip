@@ -28,26 +28,30 @@ import { useTheme } from "@/components/theme-provider";
 import { getStorageData, setStorageData } from "@/lib/storage";
 import { useStatusStore } from "@/store/statusStore";
 import browser from 'webextension-polyfill';
-import { Globe, Shield, Wifi, WifiOff, RefreshCcw, Edit2, Moon, Sun, Monitor } from "lucide-react";
+import { Globe, Shield, Wifi, WifiOff, RefreshCcw, Edit2, Moon, Sun, Monitor, Clock, Info } from "lucide-react";
 
 export default function Settings() {
   const [serverUrl, setServerUrl] = useState("localhost:3000");
   const [useSsl, setUseSsl] = useState(false);
-  const { status, lastError, fetchStatus } = useStatusStore();
+  const { status, lastError, pollInterval, fetchStatus } = useStatusStore();
   const { theme, setTheme } = useTheme();
   
   const [isServerDialogOpen, setIsServerDialogOpen] = useState(false);
   const [editServerUrl, setEditServerUrl] = useState("");
   const [editUseSsl, setEditUseSsl] = useState(false);
 
+  const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
+  const [editPollInterval, setEditPollInterval] = useState(1);
+
   useEffect(() => {
     loadSettings();
   }, []);
 
   const loadSettings = async () => {
-    const data = await getStorageData(['serverUrl', 'useSsl']);
+    const data = await getStorageData(['serverUrl', 'useSsl', 'pollInterval']);
     if (data.serverUrl) setServerUrl(data.serverUrl);
     if (data.useSsl !== undefined) setUseSsl(data.useSsl);
+    if (data.pollInterval) setEditPollInterval(data.pollInterval);
     fetchStatus();
   };
 
@@ -56,6 +60,15 @@ export default function Settings() {
     setServerUrl(editServerUrl);
     setUseSsl(editUseSsl);
     setIsServerDialogOpen(false);
+    browser.runtime.sendMessage({ type: "RECONNECT" });
+  };
+
+  const handleSaveSync = async () => {
+    const interval = parseFloat(editPollInterval);
+    if (isNaN(interval) || interval <= 0) return;
+    
+    await setStorageData({ pollInterval: interval });
+    setIsSyncDialogOpen(false);
     browser.runtime.sendMessage({ type: "RECONNECT" });
   };
 
@@ -148,6 +161,81 @@ export default function Settings() {
                 </div>
                 <DialogFooter>
                   <Button onClick={handleSaveServer}>Save changes</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shrink-0">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="w-5 h-5" /> Sync Settings
+            </CardTitle>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[320px]">
+                <div className="space-y-2 py-1">
+                  <p className="text-xs font-semibold">Why Polling?</p>
+                  <p className="text-[11px] leading-relaxed">
+                    Browsers do not provide a direct listener for clipboard changes. We periodically check via the Alarms API to detect updates.
+                  </p>
+                  <p className="text-xs font-semibold mt-2">Chrome Technical Note:</p>
+                  <div className="text-[10px] leading-relaxed opacity-90 space-y-1">
+                    <p>• In Chrome (unless unpacked), alarms fire at most once every 30 seconds.</p>
+                    <p>• Setting an interval &lt; 0.5 minutes (30s) causes a warning and defaults to 30s in production.</p>
+                    <p>• Alarm firings can be arbitrarily delayed. (Before Chrome 120, the limit was 60s).</p>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <CardDescription>Configure how often the clipboard is synced.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">{pollInterval} seconds</span>
+              <span className="text-[10px] text-muted-foreground">Polling interval</span>
+            </div>
+            
+            <Dialog open={isSyncDialogOpen} onOpenChange={setIsSyncDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setEditPollInterval(pollInterval);
+                }}>
+                  <Edit2 className="w-4 h-4 mr-2" /> Edit
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Sync Settings</DialogTitle>
+                  <DialogDescription>
+                    Adjust how frequently the extension checks for clipboard changes.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Polling Interval (seconds)</label>
+                    <Input 
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      value={editPollInterval} 
+                      onChange={(e) => setEditPollInterval(e.target.value)} 
+                      placeholder="e.g. 1.2"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Lower values mean faster sync but higher battery/CPU usage.
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleSaveSync}>Save changes</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

@@ -11,6 +11,7 @@ let roomDevices = [];
 let connectionStatus = "disconnected";
 let lastError = "";
 let deviceName = "Unknown Device";
+let pollInterval = 1;
 
 async function setupOffscreen() {
   if (await browser.offscreen.hasDocument()) return;
@@ -51,7 +52,7 @@ async function setClipboardText(text) {
 }
 
 async function initSync() {
-  const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName']);
+  const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName', 'pollInterval']);
   if (!data.seedPhrase) {
     console.log("No seed phrase found, skipping sync init.");
     connectionStatus = "no_seed";
@@ -59,9 +60,15 @@ async function initSync() {
   }
 
   deviceName = data.deviceName || `Device ${Math.floor(Math.random() * 1000)}`;
+  pollInterval = data.pollInterval || 1.2;
   const serverUrl = data.serverUrl || "localhost:3000";
   const protocol = data.useSsl ? "https://" : "http://";
   const fullUrl = serverUrl.includes("://") ? serverUrl : protocol + serverUrl;
+
+  // Setup alarm with the interval
+  await browser.alarms.clear('poll_clipboard');
+  browser.alarms.create('poll_clipboard', { periodInMinutes: pollInterval / 60 });
+  console.log(`Clipboard polling alarm set to ${pollInterval} seconds`);
 
   encryptionKey = deriveKey(data.seedPhrase);
   roomId = getRoomId(data.seedPhrase);
@@ -177,7 +184,8 @@ browser.runtime.onMessage.addListener((message, sender) => {
           roomDevices, 
           socketId: socket?.id,
           roomId,
-          deviceName
+          deviceName,
+          pollInterval
         });
     } else if (message.type === "EXCLUDE_DEVICE") {
         if (socket && socket.connected) {
@@ -201,8 +209,6 @@ browser.runtime.onMessage.addListener((message, sender) => {
 });
 
 // Use Alarms for periodic polling (service workers can be killed)
-browser.alarms.create('poll_clipboard', { periodInMinutes: 0.1 }); // Every 6 seconds
-
 browser.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'poll_clipboard') {
     pollClipboard();
