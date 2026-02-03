@@ -26,16 +26,13 @@ import {
 } from "@/components/ui/tooltip";
 import { useTheme } from "@/components/theme-provider";
 import { getStorageData, setStorageData } from "@/lib/storage";
-import { generateSeedPhrase, validateSeedPhrase } from "@/lib/crypto";
-import { Globe, Shield, Key, Wifi, WifiOff, RefreshCcw, AlertCircle, Edit2, Moon, Sun, Monitor } from "lucide-react";
+import { Globe, Shield, Wifi, WifiOff, RefreshCcw, Edit2, Moon, Sun, Monitor } from "lucide-react";
 
 export default function Settings() {
   const [serverUrl, setServerUrl] = useState("localhost:3000");
   const [useSsl, setUseSsl] = useState(false);
-  const [seedPhrase, setSeedPhrase] = useState("");
   const [status, setStatus] = useState("disconnected");
   const [lastError, setLastError] = useState("");
-  const [error, setError] = useState("");
   const { theme, setTheme } = useTheme();
   
   const [isServerDialogOpen, setIsServerDialogOpen] = useState(false);
@@ -49,10 +46,9 @@ export default function Settings() {
   }, []);
 
   const loadSettings = async () => {
-    const data = await getStorageData(['serverUrl', 'useSsl', 'seedPhrase']);
+    const data = await getStorageData(['serverUrl', 'useSsl']);
     if (data.serverUrl) setServerUrl(data.serverUrl);
     if (data.useSsl !== undefined) setUseSsl(data.useSsl);
-    if (data.seedPhrase) setSeedPhrase(data.seedPhrase);
     updateStatus();
   };
 
@@ -73,22 +69,6 @@ export default function Settings() {
     setUseSsl(editUseSsl);
     setIsServerDialogOpen(false);
     chrome.runtime.sendMessage({ type: "RECONNECT" });
-  };
-
-  const handleSaveSeed = async () => {
-    setError("");
-    if (!validateSeedPhrase(seedPhrase)) {
-      setError("Please enter a valid 12 or 24 word mnemonic.");
-      return;
-    }
-    await setStorageData({ seedPhrase });
-    chrome.runtime.sendMessage({ type: "RECONNECT" });
-  };
-
-  const handleGenerate = () => {
-    const newSeed = generateSeedPhrase();
-    setSeedPhrase(newSeed);
-    setError("");
   };
 
   const getStatusColor = () => {
@@ -153,7 +133,7 @@ export default function Settings() {
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Edit Middle Server</DialogTitle>
+                  <DialogTitle>Edit Relay Server</DialogTitle>
                   <DialogDescription>
                     Configure the server used for signaling and data relay.
                   </DialogDescription>
@@ -183,38 +163,6 @@ export default function Settings() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="shrink-0">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Key className="w-5 h-5" /> Sync Group
-          </CardTitle>
-          <CardDescription>All devices must share the same seed phrase.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <textarea 
-              className={`w-full min-h-[80px] p-2 text-sm border rounded-md bg-muted/30 focus:outline-none focus:ring-1 focus:ring-ring ${error ? 'border-destructive' : ''}`}
-              value={seedPhrase} 
-              onChange={(e) => {
-                  setSeedPhrase(e.target.value);
-                  if (error) setError("");
-              }} 
-              placeholder="Enter your 12-word seed phrase..."
-            />
-            {error && (
-                <div className="flex items-center gap-2 text-xs text-destructive">
-                    <AlertCircle className="w-3 h-3" />
-                    {error}
-                </div>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleGenerate} className="flex-1 text-xs">Generate New</Button>
-            <Button onClick={handleSaveSeed} className="flex-1 text-xs">Save & Sync</Button>
           </div>
         </CardContent>
       </Card>

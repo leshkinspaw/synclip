@@ -17,7 +17,22 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getStorageData, setStorageData } from "@/lib/storage";
-import { Laptop, Monitor, Trash2, Send, CheckCircle2, XCircle, LogOut, RefreshCcw, Edit2, Wifi, WifiOff } from "lucide-react";
+import { generateSeedPhrase, validateSeedPhrase } from "@/lib/crypto";
+import {
+  Laptop,
+  Monitor,
+  Trash2,
+  Send,
+  CheckCircle2,
+  XCircle,
+  LogOut,
+  RefreshCcw,
+  Edit2,
+  Wifi,
+  WifiOff,
+  Key,
+  AlertCircle
+} from "lucide-react";
 
 export default function Devices() {
   const [devices, setDevices] = useState([]);
@@ -28,6 +43,8 @@ export default function Devices() {
   const [status, setStatus] = useState("disconnected");
   const [lastError, setLastError] = useState("");
   const [pings, setPings] = useState({}); // socketId -> status
+  const [seedPhrase, setSeedPhrase] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadMyData();
@@ -58,8 +75,9 @@ export default function Devices() {
   }, []);
 
   const loadMyData = async () => {
-    const data = await getStorageData(['deviceName']);
+    const data = await getStorageData(['deviceName', 'seedPhrase']);
     if (data.deviceName) setDeviceName(data.deviceName);
+    if (data.seedPhrase) setSeedPhrase(data.seedPhrase);
   };
 
   const updateDevices = () => {
@@ -113,6 +131,22 @@ export default function Devices() {
     }, 5000);
   };
 
+  const handleSaveSeed = async () => {
+    setError("");
+    if (!validateSeedPhrase(seedPhrase)) {
+      setError("Please enter a valid 12 or 24 word mnemonic.");
+      return;
+    }
+    await setStorageData({ seedPhrase });
+    chrome.runtime.sendMessage({ type: "RECONNECT" });
+  };
+
+  const handleGenerate = () => {
+    const newSeed = generateSeedPhrase();
+    setSeedPhrase(newSeed);
+    setError("");
+  };
+
   const getStatusColor = () => {
     switch (status) {
       case "connected": return "text-green-500";
@@ -131,7 +165,7 @@ export default function Devices() {
   };
 
   return (
-    <div className="p-4 flex flex-col h-full space-y-4 overflow-hidden">
+    <div className="p-4 flex flex-col h-full space-y-4 overflow-y-auto">
       <Card className="shrink-0">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -189,21 +223,18 @@ export default function Devices() {
               </DialogContent>
             </Dialog>
           </div>
-          <Button onClick={handleLeaveGroup} variant="destructive" className="w-full gap-2" size="sm">
-            <LogOut className="w-4 h-4" /> Leave Sync Group
-          </Button>
         </CardContent>
       </Card>
 
-      <Card className="flex-1 flex flex-col overflow-hidden">
+      <Card className="shrink-0">
         <CardHeader className="pb-3 shrink-0">
           <CardTitle className="text-lg flex items-center gap-2">
             <Monitor className="w-5 h-5" /> Connected Devices
           </CardTitle>
           <CardDescription>{devices.length} device(s) in group</CardDescription>
         </CardHeader>
-        <CardContent className="flex-1 overflow-y-auto min-h-0">
-          <div className="space-y-4 pr-1">
+        <CardContent>
+          <div className="space-y-4">
             {devices.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">No other devices online.</p>
             )}
@@ -247,6 +278,42 @@ export default function Devices() {
           </div>
         </CardContent>
       </Card>
+
+      <Card className="shrink-0">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Key className="w-5 h-5" /> Sync Group
+          </CardTitle>
+          <CardDescription>All devices must share the same seed phrase.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <textarea
+                className={`w-full min-h-[60px] p-2 text-sm border rounded-md bg-muted/30 focus:outline-none focus:ring-1 focus:ring-ring ${error ? 'border-destructive' : ''}`}
+                value={seedPhrase}
+                onChange={(e) => {
+                  setSeedPhrase(e.target.value);
+                  if (error) setError("");
+                }}
+                placeholder="Enter your 12-word seed phrase..."
+            />
+            {error && (
+                <div className="flex items-center gap-2 text-xs text-destructive">
+                  <AlertCircle className="w-3 h-3" />
+                  {error}
+                </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleGenerate} className="flex-1 text-xs">Generate New</Button>
+            <Button onClick={handleSaveSeed} className="flex-1 text-xs">Save & Sync</Button>
+          </div>
+          <Button onClick={handleLeaveGroup} variant="destructive" className="w-full gap-2" size="sm">
+            <LogOut className="w-4 h-4" /> Leave Sync Group
+          </Button>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
