@@ -1,11 +1,35 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { useStatusStore } from "@/store/statusStore"
+import browser from 'webextension-polyfill'
 import Devices from './pages/Devices'
 import Settings from './pages/Settings'
 
 function App() {
+  const { fetchStatus, updateStatus } = useStatusStore();
+
+  useEffect(() => {
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 3000);
+
+    const listener = (message) => {
+      if (message.type === "ROOM_STATUS_UPDATED") {
+        updateStatus({ devices: message.devices });
+      } else if (message.type === "EXCLUDED") {
+        window.location.reload();
+      }
+    };
+
+    browser.runtime.onMessage.addListener(listener);
+
+    return () => {
+      clearInterval(interval);
+      browser.runtime.onMessage.removeListener(listener);
+    };
+  }, [fetchStatus, updateStatus]);
+
   return (
     <ThemeProvider defaultTheme="system" storageKey="synclip-theme">
       <TooltipProvider>

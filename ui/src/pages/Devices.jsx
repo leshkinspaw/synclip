@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/tooltip";
 import { getStorageData, setStorageData } from "@/lib/storage";
 import { generateSeedPhrase, validateSeedPhrase } from "@/lib/crypto";
+import { useStatusStore } from "@/store/statusStore";
+import browser from 'webextension-polyfill';
 import {
   Laptop,
   Monitor,
@@ -37,13 +39,13 @@ import {
 } from "lucide-react";
 
 export default function Devices() {
-  const [devices, setDevices] = useState([]);
-  const [myId, setMyId] = useState("");
-  const [deviceName, setDeviceName] = useState("");
+  const { 
+    devices, status, lastError, myId, deviceName, 
+    fetchStatus, updateStatus 
+  } = useStatusStore();
+
   const [editName, setEditName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [status, setStatus] = useState("disconnected");
-  const [lastError, setLastError] = useState("");
   const [pings, setPings] = useState({}); // socketId -> status
   const [seedPhrase, setSeedPhrase] = useState("");
   const [error, setError] = useState("");
@@ -59,77 +61,52 @@ export default function Devices() {
 
   useEffect(() => {
     loadMyData();
-    updateDevices();
+    fetchStatus();
     
-    const interval = setInterval(updateDevices, 3000);
-    
-    if (typeof chrome !== 'undefined' && chrome.runtime) {
-      const listener = (message) => {
-        if (message.type === "ROOM_STATUS_UPDATED") {
-          setDevices(message.devices);
-        } else if (message.type === "PONG_RECEIVED") {
-          setPings(prev => ({ ...prev, [message.fromSocketId]: 'success' }));
-          setTimeout(() => {
-            setPings(prev => ({ ...prev, [message.fromSocketId]: null }));
-          }, 3000);
-        } else if (message.type === "EXCLUDED") {
-            window.location.reload();
-        }
-      };
-      chrome.runtime.onMessage.addListener(listener);
-      return () => {
-        clearInterval(interval);
-        chrome.runtime.onMessage.removeListener(listener);
-      };
-    }
-    return () => clearInterval(interval);
-  }, []);
+    const listener = (message) => {
+      if (message.type === "PONG_RECEIVED") {
+        setPings(prev => ({ ...prev, [message.fromSocketId]: 'success' }));
+        setTimeout(() => {
+          setPings(prev => ({ ...prev, [message.fromSocketId]: null }));
+        }, 3000);
+      }
+    };
+    browser.runtime.onMessage.addListener(listener);
+    return () => {
+      browser.runtime.onMessage.removeListener(listener);
+    };
+  }, [fetchStatus, updateStatus]);
 
   const loadMyData = async () => {
     const data = await getStorageData(['deviceName', 'seedPhrase']);
-    if (data.deviceName) setDeviceName(data.deviceName);
+    if (data.deviceName) updateStatus({ deviceName: data.deviceName });
     if (data.seedPhrase) setSeedPhrase(data.seedPhrase);
-  };
-
-  const updateDevices = () => {
-    if (typeof chrome !== 'undefined' && chrome.runtime) {
-      chrome.runtime.sendMessage({ type: "GET_STATUS" }, (response) => {
-        if (response) {
-          setDevices(response.roomDevices || []);
-          setMyId(response.socketId);
-          setStatus(response.connectionStatus);
-          setLastError(response.lastError || "");
-          if (!deviceName && response.deviceName) setDeviceName(response.deviceName);
-        }
-      });
-    }
   };
 
   const handleUpdateName = async () => {
     if (!editName.trim()) return;
     await setStorageData({ deviceName: editName });
-    setDeviceName(editName);
+    updateStatus({ deviceName: editName });
     setIsDialogOpen(false);
-    chrome.runtime.sendMessage({ type: "RECONNECT" });
+    browser.runtime.sendMessage({ type: "RECONNECT" });
   };
 
-  const handleLeaveGroup = () => {
+  const handleLeaveGroup = async () => {
     if (confirm("Are you sure you want to leave the sync group? This will clear your seed phrase.")) {
-      chrome.runtime.sendMessage({ type: "LEAVE_GROUP" }, () => {
-        window.location.reload();
-      });
+      await browser.runtime.sendMessage({ type: "LEAVE_GROUP" });
+      window.location.reload();
     }
   };
 
   const handleExclude = (socketId, name) => {
     if (confirm(`Are you sure you want to exclude "${name}"?`)) {
-      chrome.runtime.sendMessage({ type: "EXCLUDE_DEVICE", socketId });
+      browser.runtime.sendMessage({ type: "EXCLUDE_DEVICE", socketId });
     }
   };
 
   const handlePing = (socketId) => {
     setPings(prev => ({ ...prev, [socketId]: 'pending' }));
-    chrome.runtime.sendMessage({ type: "PING_DEVICE", socketId });
+    browser.runtime.sendMessage({ type: "PING_DEVICE", socketId });
     
     // Timeout ping
     setTimeout(() => {
@@ -151,7 +128,7 @@ export default function Devices() {
     await setStorageData({ seedPhrase: editSeedPhrase });
     setSeedPhrase(editSeedPhrase);
     setIsSeedDialogOpen(false);
-    chrome.runtime.sendMessage({ type: "RECONNECT" });
+    browser.runtime.sendMessage({ type: "RECONNECT" });
   };
 
   const handleGenerate = () => {

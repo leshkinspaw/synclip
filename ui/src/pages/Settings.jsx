@@ -26,13 +26,14 @@ import {
 } from "@/components/ui/tooltip";
 import { useTheme } from "@/components/theme-provider";
 import { getStorageData, setStorageData } from "@/lib/storage";
+import { useStatusStore } from "@/store/statusStore";
+import browser from 'webextension-polyfill';
 import { Globe, Shield, Wifi, WifiOff, RefreshCcw, Edit2, Moon, Sun, Monitor } from "lucide-react";
 
 export default function Settings() {
   const [serverUrl, setServerUrl] = useState("localhost:3000");
   const [useSsl, setUseSsl] = useState(false);
-  const [status, setStatus] = useState("disconnected");
-  const [lastError, setLastError] = useState("");
+  const { status, lastError, fetchStatus } = useStatusStore();
   const { theme, setTheme } = useTheme();
   
   const [isServerDialogOpen, setIsServerDialogOpen] = useState(false);
@@ -41,26 +42,13 @@ export default function Settings() {
 
   useEffect(() => {
     loadSettings();
-    const interval = setInterval(updateStatus, 2000);
-    return () => clearInterval(interval);
   }, []);
 
   const loadSettings = async () => {
     const data = await getStorageData(['serverUrl', 'useSsl']);
     if (data.serverUrl) setServerUrl(data.serverUrl);
     if (data.useSsl !== undefined) setUseSsl(data.useSsl);
-    updateStatus();
-  };
-
-  const updateStatus = () => {
-    if (typeof chrome !== 'undefined' && chrome.runtime) {
-      chrome.runtime.sendMessage({ type: "GET_STATUS" }, (response) => {
-        if (response) {
-          setStatus(response.connectionStatus);
-          setLastError(response.lastError || "");
-        }
-      });
-    }
+    fetchStatus();
   };
 
   const handleSaveServer = async () => {
@@ -68,7 +56,7 @@ export default function Settings() {
     setServerUrl(editServerUrl);
     setUseSsl(editUseSsl);
     setIsServerDialogOpen(false);
-    chrome.runtime.sendMessage({ type: "RECONNECT" });
+    browser.runtime.sendMessage({ type: "RECONNECT" });
   };
 
   const getStatusColor = () => {

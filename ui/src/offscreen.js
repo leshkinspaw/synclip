@@ -1,3 +1,5 @@
+import browser from 'webextension-polyfill';
+
 // Offscreen document script
 console.log("Offscreen document loaded");
 
@@ -44,14 +46,12 @@ async function writeClipboard(text) {
   }
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((message, sender) => {
   if (message.target !== 'offscreen') return;
 
   if (message.type === 'READ_CLIPBOARD') {
-    readClipboard().then(text => sendResponse({ text }));
-    return true; // Keep channel open for async response
+    return readClipboard().then(text => ({ text }));
   } else if (message.type === 'WRITE_CLIPBOARD') {
-    writeClipboard(message.text).then(success => sendResponse({ success }));
-    return true;
+    return writeClipboard(message.text).then(success => ({ success }));
   }
 });

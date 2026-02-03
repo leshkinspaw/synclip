@@ -1,6 +1,7 @@
 import { io } from "socket.io-client";
 import { getStorageData, removeStorageData } from "./lib/storage";
 import { deriveKey, encryptData, decryptData, getRoomId } from "./lib/crypto";
+import browser from 'webextension-polyfill';
 
 let socket = null;
 let lastClipboardText = "";
@@ -12,8 +13,8 @@ let lastError = "";
 let deviceName = "Unknown Device";
 
 async function setupOffscreen() {
-  if (await chrome.offscreen.hasDocument()) return;
-  await chrome.offscreen.createDocument({
+  if (await browser.offscreen.hasDocument()) return;
+  await browser.offscreen.createDocument({
     url: 'offscreen.html',
     reasons: ['CLIPBOARD'],
     justification: 'Monitor and update clipboard for syncing between devices.',
@@ -22,27 +23,31 @@ async function setupOffscreen() {
 
 async function getClipboardText() {
   await setupOffscreen();
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({
+  try {
+    const response = await browser.runtime.sendMessage({
       type: 'READ_CLIPBOARD',
       target: 'offscreen'
-    }, (response) => {
-      resolve(response?.text || "");
     });
-  });
+    return response?.text || "";
+  } catch (e) {
+    console.error("Failed to get clipboard text", e);
+    return "";
+  }
 }
 
 async function setClipboardText(text) {
   await setupOffscreen();
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({
+  try {
+    const response = await browser.runtime.sendMessage({
       type: 'WRITE_CLIPBOARD',
       target: 'offscreen',
       text
-    }, (response) => {
-      resolve(response?.success || false);
     });
-  });
+    return response?.success || false;
+  } catch (e) {
+    console.error("Failed to set clipboard text", e);
+    return false;
+  }
 }
 
 async function initSync() {
@@ -80,12 +85,12 @@ async function initSync() {
 
   socket.on('room_status', (devices) => {
     roomDevices = devices;
-    chrome.runtime.sendMessage({ type: "ROOM_STATUS_UPDATED", devices });
+    browser.runtime.sendMessage({ type: "ROOM_STATUS_UPDATED", devices });
   });
 
   socket.on('excluded', async () => {
     console.log("This device was excluded from the sync group");
-    chrome.notifications.create({
+    browser.notifications.create({
       type: 'basic',
       iconUrl: 'icon48.png',
       title: 'SynClip',
@@ -97,7 +102,7 @@ async function initSync() {
     connectionStatus = "disconnected";
     roomId = null;
     encryptionKey = null;
-    chrome.runtime.sendMessage({ type: "EXCLUDED" });
+    browser.runtime.sendMessage({ type: "EXCLUDED" });
   });
 
   socket.on('ping_device', (data) => {
@@ -105,7 +110,7 @@ async function initSync() {
   });
 
   socket.on('pong_device', (data) => {
-    chrome.runtime.sendMessage({ type: "PONG_RECEIVED", fromSocketId: data.fromSocketId });
+    browser.runtime.sendMessage({ type: "PONG_RECEIVED", fromSocketId: data.fromSocketId });
   });
 
   socket.on('clipboard_update', (encryptedData) => {
@@ -115,7 +120,7 @@ async function initSync() {
         lastClipboardText = decryptedText;
         setClipboardText(decryptedText);
         console.log("Clipboard updated from remote");
-        chrome.notifications.create({
+        browser.notifications.create({
             type: 'basic',
             iconUrl: 'icon48.png',
             title: 'SynClip',
@@ -153,20 +158,20 @@ async function pollClipboard() {
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+browser.runtime.onInstalled.addListener(() => {
   console.log("SynClip Extension Installed");
   initSync();
 });
 
-chrome.runtime.onStartup.addListener(() => {
+browser.runtime.onStartup.addListener(() => {
     initSync();
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((message, sender) => {
     if (message.type === "RECONNECT") {
         initSync();
     } else if (message.type === "GET_STATUS") {
-        sendResponse({ 
+        return Promise.resolve({ 
           connectionStatus, 
           lastError,
           roomDevices, 
@@ -179,16 +184,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             socket.emit('exclude_device', { room: roomId, socketId: message.socketId });
         }
     } else if (message.type === "LEAVE_GROUP") {
-        (async () => {
+        return (async () => {
             await removeStorageData('seedPhrase');
             if (socket) socket.disconnect();
             connectionStatus = "disconnected";
             roomId = null;
             encryptionKey = null;
             roomDevices = [];
-            sendResponse({ success: true });
+            return { success: true };
         })();
-        return true; // Keep channel open for async response
     } else if (message.type === "PING_DEVICE") {
         if (socket && socket.connected) {
             socket.emit('ping_device', { targetSocketId: message.socketId, fromSocketId: socket.id });
@@ -197,9 +201,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Use Alarms for periodic polling (service workers can be killed)
-chrome.alarms.create('poll_clipboard', { periodInMinutes: 0.1 }); // Every 6 seconds
+browser.alarms.create('poll_clipboard', { periodInMinutes: 0.1 }); // Every 6 seconds
 
-chrome.alarms.onAlarm.addListener((alarm) => {
+browser.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'poll_clipboard') {
     pollClipboard();
   }
