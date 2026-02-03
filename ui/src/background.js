@@ -187,7 +187,7 @@ browser.runtime.onMessage.addListener((message, sender) => {
         return (async () => {
             await removeStorageData('seedPhrase');
             if (socket) socket.disconnect();
-            connectionStatus = "disconnected";
+            connectionStatus = "no_seed";
             roomId = null;
             encryptionKey = null;
             roomDevices = [];
