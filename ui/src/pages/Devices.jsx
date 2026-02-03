@@ -337,7 +337,7 @@ export default function Devices() {
                   <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                       <textarea
-                          className={`w-full min-h-[100px] p-2 text-sm border rounded-md bg-muted/30 focus:outline-none focus:ring-1 focus:ring-ring ${error ? 'border-destructive' : ''}`}
+                          className={`w-full min-h-[100px] max-h-[200px] p-2 text-sm border rounded-md bg-muted/30 focus:outline-none focus:ring-1 focus:ring-ring ${error ? 'border-destructive' : ''}`}
                           value={editSeedPhrase}
                           onChange={(e) => {
                             setEditSeedPhrase(e.target.value);
