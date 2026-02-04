@@ -11,12 +11,13 @@ import {
   ExternalLink,
   Copy,
   Check,
-  Users,
+  Laptop,
+  Eye,
   AlertCircle
 } from "lucide-react";
 
 export default function Share() {
-  const { devices, myId, deviceName } = useStatusStore();
+  const { devices, myId } = useStatusStore();
   const [sharing, setSharing] = useState({ screen: false, camera: false });
   const [copiedId, setCopiedId] = useState(null);
 
@@ -24,15 +25,21 @@ export default function Share() {
     const myDevice = devices.find(d => d.socketId === myId);
     if (myDevice?.sharing) {
       setSharing(myDevice.sharing);
+    } else {
+      setSharing({ screen: false, camera: false });
     }
   }, [devices, myId]);
 
   const handleStartShare = async (type) => {
     try {
-      // For extensions, we should open a new tab that will handle the stream
-      // because the popup might close.
-      const url = browser.runtime.getURL(`share-stream.html?type=${type}`);
-      await browser.tabs.create({ url });
+      const tabs = await browser.tabs.query({ url: browser.runtime.getURL('share-stream.html*') });
+      if (tabs.length > 0) {
+        await browser.tabs.update(tabs[0].id, { active: true });
+        browser.runtime.sendMessage({ type: "START_SHARE_FROM_POPUP", streamType: type });
+      } else {
+        const url = browser.runtime.getURL(`share-stream.html?type=${type}`);
+        await browser.tabs.create({ url });
+      }
     } catch (err) {
       console.error(`Failed to start ${type} share:`, err);
     }
@@ -57,15 +64,24 @@ export default function Share() {
   const otherDevices = devices.filter(d => d.socketId !== myId);
   const myDevice = devices.find(d => d.socketId === myId);
 
+  // Group monitors for "My Broadcast"
+  const groupedMonitors = myDevice?.monitors?.reduce((acc, m) => {
+    if (!acc[m.socketId]) {
+      acc[m.socketId] = { deviceName: m.deviceName, types: [] };
+    }
+    acc[m.socketId].types.push(m.type);
+    return acc;
+  }, {}) || {};
+
   return (
     <div className="flex flex-col h-full overflow-y-auto p-4 space-y-4">
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Play className="w-5 h-5 text-primary" />
-            My Broadcast
+            This Device
           </CardTitle>
-          <CardDescription>Share your screen or camera with the group</CardDescription>
+          <CardDescription>Share your screen or camera with other devices</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
@@ -110,18 +126,21 @@ export default function Share() {
             )}
           </div>
 
-          {myDevice?.monitors && myDevice.monitors.length > 0 && (
+          {Object.keys(groupedMonitors).length > 0 && (
             <div className="mt-4 pt-4 border-t border-border">
               <h4 className="text-sm font-medium flex items-center gap-2 mb-2">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                Watching now ({myDevice.monitors.length}):
+                <Eye className="w-4 h-4 text-muted-foreground" />
+                Other devices ({Object.keys(groupedMonitors).length}):
               </h4>
               <div className="flex flex-wrap gap-2">
-                {myDevice.monitors.map((m, idx) => (
-                  <span key={idx} className="text-xs bg-secondary px-2 py-1 rounded-full flex items-center gap-1">
-                    {m.deviceName} 
-                    <span className="text-[10px] text-muted-foreground">({m.type})</span>
-                  </span>
+                {Object.entries(groupedMonitors).map(([socketId, data]) => (
+                  <div key={socketId} className="text-xs bg-secondary px-2 py-1 rounded-full flex items-center gap-2">
+                    <span className="font-medium">{data.deviceName}</span>
+                    <div className="flex gap-1 border-l pl-1.5 ml-0.5 border-muted-foreground/30">
+                      {data.types.includes('screen') && <Monitor className="w-3 h-3" />}
+                      {data.types.includes('camera') && <Camera className="w-3 h-3" />}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -130,7 +149,7 @@ export default function Share() {
       </Card>
 
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Active Shares</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Other Devices</h3>
         {otherDevices.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
             <AlertCircle className="w-8 h-8 mb-2 opacity-20" />
@@ -142,57 +161,62 @@ export default function Share() {
             if (sharingDevices.length === 0) {
               return (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                  <p className="text-sm">No one is sharing right now</p>
+                  <p className="text-sm">No other devices are sharing right now</p>
                 </div>
               );
             }
             return sharingDevices.map(device => (
-              <div key={device.socketId} className="space-y-2">
-                {device.sharing?.screen && (
-                  <Card key={`${device.socketId}-screen`}>
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-primary/10 p-2 rounded-full">
-                          <Monitor className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{device.deviceName}</p>
-                          <p className="text-xs text-muted-foreground">Screenshare</p>
-                        </div>
+              <Card key={device.socketId} className="overflow-hidden border-l-4 border-l-primary">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="bg-primary/10 p-1.5 rounded-md">
+                        <Laptop className="w-4 h-4 text-primary" />
                       </div>
-                      <Button size="sm" onClick={() => handleWatch(device.socketId, 'screen')}>
-                        <ExternalLink className="w-4 h-4 mr-1" />
-                        Watch
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-                {device.sharing?.camera && (
-                  <Card key={`${device.socketId}-camera`}>
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-primary/10 p-2 rounded-full">
-                          <Camera className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{device.deviceName}</p>
-                          <p className="text-xs text-muted-foreground">Camera + Mic</p>
-                        </div>
+                      <p className="text-sm font-bold">{device.deviceName}</p>
+                    </div>
+                    {device.monitors && device.monitors.length > 0 && (
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                         <Eye className="w-2.5 h-2.5" />
+                         {device.monitors.length}
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => copyOBSLink(device.socketId)}>
-                          {copiedId === device.socketId ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          <span className="ml-1 hidden sm:inline">OBS</span>
-                        </Button>
-                        <Button size="sm" onClick={() => handleWatch(device.socketId, 'camera')}>
-                          <ExternalLink className="w-4 h-4 mr-1" />
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {device.sharing?.screen && (
+                      <div className="flex items-center justify-between bg-secondary/30 p-2 rounded-md border border-border/50">
+                        <div className="flex items-center gap-2 text-xs">
+                          <Monitor className="w-3.5 h-3.5 text-primary" />
+                          <span>Screen</span>
+                        </div>
+                        <Button size="xs" className="h-7 px-3 text-[10px]" onClick={() => handleWatch(device.socketId, 'screen')}>
+                          <ExternalLink className="w-3 h-3 mr-1" />
                           Watch
                         </Button>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+                    )}
+                    {device.sharing?.camera && (
+                      <div className="flex items-center justify-between bg-secondary/30 p-2 rounded-md border border-border/50">
+                        <div className="flex items-center gap-2 text-xs">
+                          <Camera className="w-3.5 h-3.5 text-primary" />
+                          <span>Camera + Mic</span>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="outline" size="xs" className="h-7 px-2 text-[10px]" onClick={() => copyOBSLink(device.socketId)}>
+                            {copiedId === device.socketId ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            <span className="ml-1">OBS</span>
+                          </Button>
+                          <Button size="xs" className="h-7 px-3 text-[10px]" onClick={() => handleWatch(device.socketId, 'camera')}>
+                            <ExternalLink className="w-3 h-3 mr-1" />
+                            Watch
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             ));
           })()
         )}

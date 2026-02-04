@@ -13,6 +13,7 @@ let lastError = "";
 let deviceName = "Unknown Device";
 let pollInterval = 1;
 let localSharing = { screen: false, camera: false };
+let activeTabs = {}; // tabId -> { shares: Set(), watches: Set() }
 
 async function setupOffscreen() {
   if (await browser.offscreen.hasDocument()) return;
@@ -248,14 +249,28 @@ const handlers = {
       socket.emit('ping_device', { targetSocketId: message.socketId, fromSocketId: socket.id });
     }
   },
-  "START_SHARE": async (message) => {
+  "START_SHARE": async (message, sender) => {
     localSharing[message.streamType] = true;
+    if (sender?.tab?.id) {
+      const tabId = sender.tab.id;
+      if (!activeTabs[tabId]) activeTabs[tabId] = { shares: new Set(), watches: new Set() };
+      activeTabs[tabId].shares.add(message.streamType);
+    }
     if (socket?.connected) {
       socket.emit('start_share', { type: message.streamType });
     }
   },
-  "STOP_SHARE": async (message) => {
+  "STOP_SHARE": async (message, sender) => {
     localSharing[message.streamType] = false;
+    if (sender?.tab?.id) {
+      const tabId = sender.tab.id;
+      if (activeTabs[tabId]) {
+        activeTabs[tabId].shares.delete(message.streamType);
+        if (activeTabs[tabId].shares.size === 0 && activeTabs[tabId].watches.size === 0) {
+          delete activeTabs[tabId];
+        }
+      }
+    }
     if (socket?.connected) {
       socket.emit('stop_share', { type: message.streamType });
       // Notify any open share-stream tabs to stop
@@ -271,7 +286,16 @@ const handlers = {
       });
     }
   },
-  "JOIN_WATCH": async (message) => {
+  "JOIN_WATCH": async (message, sender) => {
+    if (sender?.tab?.id) {
+      const tabId = sender.tab.id;
+      if (!activeTabs[tabId]) activeTabs[tabId] = { shares: new Set(), watches: new Set() };
+      // Store watch as stringified object to allow easy removal
+      activeTabs[tabId].watches.add(JSON.stringify({ 
+        targetSocketId: message.targetSocketId, 
+        streamType: message.streamType 
+      }));
+    }
     if (socket?.connected) {
       socket.emit('join_watch', {
         targetSocketId: message.targetSocketId,
@@ -280,7 +304,19 @@ const handlers = {
       });
     }
   },
-  "LEAVE_WATCH": async (message) => {
+  "LEAVE_WATCH": async (message, sender) => {
+    if (sender?.tab?.id) {
+      const tabId = sender.tab.id;
+      if (activeTabs[tabId]) {
+        activeTabs[tabId].watches.delete(JSON.stringify({ 
+          targetSocketId: message.targetSocketId, 
+          streamType: message.streamType 
+        }));
+        if (activeTabs[tabId].shares.size === 0 && activeTabs[tabId].watches.size === 0) {
+          delete activeTabs[tabId];
+        }
+      }
+    }
     if (socket?.connected) {
       socket.emit('leave_watch', {
         targetSocketId: message.targetSocketId,
@@ -292,7 +328,7 @@ const handlers = {
 
 browser.runtime.onMessage.addListener((message, sender) => {
   if (handlers[message.type]) {
-    return handlers[message.type](message);
+    return handlers[message.type](message, sender);
   }
 });
 
@@ -300,6 +336,31 @@ browser.runtime.onMessage.addListener((message, sender) => {
 browser.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'poll_clipboard') {
     pollClipboard();
+  }
+});
+
+browser.tabs.onRemoved.addListener((tabId) => {
+  if (activeTabs[tabId]) {
+    console.log(`Tab ${tabId} closed, cleaning up activities`);
+    const { shares, watches } = activeTabs[tabId];
+    
+    shares.forEach(type => {
+      console.log(`Auto-stopping share: ${type}`);
+      localSharing[type] = false;
+      if (socket?.connected) {
+        socket.emit('stop_share', { type });
+      }
+    });
+
+    watches.forEach(watchStr => {
+      const { targetSocketId, streamType } = JSON.parse(watchStr);
+      console.log(`Auto-leaving watch: ${streamType} from ${targetSocketId}`);
+      if (socket?.connected) {
+        socket.emit('leave_watch', { targetSocketId, streamType });
+      }
+    });
+
+    delete activeTabs[tabId];
   }
 });
 
