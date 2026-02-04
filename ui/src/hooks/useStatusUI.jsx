@@ -21,7 +21,6 @@ export const useStatusUI = (status) => {
   };
 
   const getStatusLabel = () => {
-    if (status === "no_seed") return "SETUP REQUIRED";
     return status?.toUpperCase() || "UNKNOWN";
   };
 
