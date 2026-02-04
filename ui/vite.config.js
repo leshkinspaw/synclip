@@ -20,6 +20,8 @@ export default defineConfig({
         main: path.resolve(__dirname, 'index.html'),
         background: path.resolve(__dirname, 'src/background.js'),
         offscreen: path.resolve(__dirname, 'offscreen.html'),
+        shareStream: path.resolve(__dirname, 'share-stream.html'),
+        watch: path.resolve(__dirname, 'watch.html'),
       },
       output: {
         entryFileNames: (chunkInfo) => {

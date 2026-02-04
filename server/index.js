@@ -52,10 +52,83 @@ io.on('connection', (socket) => {
     
     // Remove if already exists (should not happen normally)
     rooms[room] = rooms[room].filter(d => d.socketId !== socket.id);
-    rooms[room].push({ socketId: socket.id, deviceName: deviceName || 'Unknown Device' });
+    rooms[room].push({ 
+      socketId: socket.id, 
+      deviceName: deviceName || 'Unknown Device',
+      sharing: { screen: false, camera: false },
+      monitors: [] // { socketId, deviceName, type }
+    });
     
     log(`User ${socket.id} (${deviceName}) joined room: ${room}`);
     broadcastRoomStatus(room);
+  });
+
+  socket.on('start_share', (data) => {
+    if (!currentRoom || !data || !data.type) return;
+    const { type } = data; // 'screen' or 'camera'
+    if (rooms[currentRoom]) {
+      const device = rooms[currentRoom].find(d => d.socketId === socket.id);
+      if (device) {
+        if (!device.sharing) device.sharing = { screen: false, camera: false };
+        device.sharing[type] = true;
+        log(`User ${socket.id} started sharing ${type} in room: ${currentRoom}`);
+        broadcastRoomStatus(currentRoom);
+      }
+    }
+  });
+
+  socket.on('stop_share', (data) => {
+    if (!currentRoom || !data || !data.type) return;
+    const { type } = data;
+    if (rooms[currentRoom]) {
+      const device = rooms[currentRoom].find(d => d.socketId === socket.id);
+      if (device) {
+        if (!device.sharing) device.sharing = { screen: false, camera: false };
+        device.sharing[type] = false;
+        // Also remove monitors for this share type
+        if (!device.monitors) device.monitors = [];
+        device.monitors = device.monitors.filter(m => m.type !== type);
+        log(`User ${socket.id} stopped sharing ${type} in room: ${currentRoom}`);
+        broadcastRoomStatus(currentRoom);
+      }
+    }
+  });
+
+  socket.on('signal', (data) => {
+    if (!data || !data.to) return;
+    // data: { to, from, signal, streamType }
+    io.to(data.to).emit('signal', {
+      from: socket.id,
+      signal: data.signal,
+      streamType: data.streamType
+    });
+  });
+
+  socket.on('join_watch', (data) => {
+    if (!currentRoom || !data || !data.targetSocketId || !data.streamType) return;
+    const { targetSocketId, streamType, deviceName } = data;
+    if (rooms[currentRoom]) {
+      const targetDevice = rooms[currentRoom].find(d => d.socketId === targetSocketId);
+      if (targetDevice) {
+        // Add to monitors if not already there
+        if (!targetDevice.monitors.find(m => m.socketId === socket.id && m.type === streamType)) {
+          targetDevice.monitors.push({ socketId: socket.id, deviceName, type: streamType });
+          broadcastRoomStatus(currentRoom);
+        }
+      }
+    }
+  });
+
+  socket.on('leave_watch', (data) => {
+    if (!currentRoom || !data || !data.targetSocketId || !data.streamType) return;
+    const { targetSocketId, streamType } = data;
+    if (rooms[currentRoom]) {
+      const targetDevice = rooms[currentRoom].find(d => d.socketId === targetSocketId);
+      if (targetDevice) {
+        targetDevice.monitors = targetDevice.monitors.filter(m => !(m.socketId === socket.id && m.type === streamType));
+        broadcastRoomStatus(currentRoom);
+      }
+    }
   });
 
   socket.on('clipboard_update', (data) => {

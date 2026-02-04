@@ -12,6 +12,7 @@ let connectionStatus = "disconnected";
 let lastError = "";
 let deviceName = "Unknown Device";
 let pollInterval = 1;
+let localSharing = { screen: false, camera: false };
 
 async function setupOffscreen() {
   if (await browser.offscreen.hasDocument()) return;
@@ -95,13 +96,27 @@ async function initSync() {
       console.log("Connected to sync server");
       connectionStatus = "connected";
       socket.emit('join', { room: roomId, deviceName });
+      
+      // Restore sharing state on reconnect
+      if (localSharing.screen) socket.emit('start_share', { type: 'screen' });
+      if (localSharing.camera) socket.emit('start_share', { type: 'camera' });
     });
 
     socket.on('room_status', (devices) => {
       roomDevices = devices;
-      browser.runtime.sendMessage({ type: "ROOM_STATUS_UPDATED", devices }).catch(() => {
+      browser.runtime.sendMessage({ 
+        type: "ROOM_STATUS_UPDATED", 
+        devices,
+        socketId: socket?.id 
+      }).catch(() => {
         // Ignore errors if no one is listening (popup closed)
       });
+    });
+
+    socket.on('signal', (data) => {
+      // Forward signaling data to any open watch or share tabs
+      console.log(`Received signal from ${data.from} for ${data.streamType}`);
+      browser.runtime.sendMessage({ type: "SIGNAL", ...data }).catch(() => {});
     });
 
     socket.on('excluded', async () => {
@@ -231,6 +246,46 @@ const handlers = {
   "PING_DEVICE": async (message) => {
     if (socket?.connected && roomId) {
       socket.emit('ping_device', { targetSocketId: message.socketId, fromSocketId: socket.id });
+    }
+  },
+  "START_SHARE": async (message) => {
+    localSharing[message.streamType] = true;
+    if (socket?.connected) {
+      socket.emit('start_share', { type: message.streamType });
+    }
+  },
+  "STOP_SHARE": async (message) => {
+    localSharing[message.streamType] = false;
+    if (socket?.connected) {
+      socket.emit('stop_share', { type: message.streamType });
+      // Notify any open share-stream tabs to stop
+      browser.runtime.sendMessage({ type: "STOP_SHARE_LOCAL", streamType: message.streamType }).catch(() => {});
+    }
+  },
+  "SIGNAL": async (message) => {
+    if (socket?.connected) {
+      socket.emit('signal', {
+        to: message.to,
+        signal: message.signal,
+        streamType: message.streamType
+      });
+    }
+  },
+  "JOIN_WATCH": async (message) => {
+    if (socket?.connected) {
+      socket.emit('join_watch', {
+        targetSocketId: message.targetSocketId,
+        streamType: message.streamType,
+        deviceName: message.deviceName
+      });
+    }
+  },
+  "LEAVE_WATCH": async (message) => {
+    if (socket?.connected) {
+      socket.emit('leave_watch', {
+        targetSocketId: message.targetSocketId,
+        streamType: message.streamType
+      });
     }
   }
 };
