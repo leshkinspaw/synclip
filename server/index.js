@@ -6,6 +6,11 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', rooms: Object.keys(rooms).length });
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -25,11 +30,20 @@ function broadcastRoomStatus(room) {
   io.to(room).emit('room_status', devices);
 }
 
+function log(...args) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}]`, ...args);
+}
+
 io.on('connection', (socket) => {
-  console.log('a user connected:', socket.id);
+  log('a user connected:', socket.id);
   let currentRoom = null;
 
   socket.on('join', (data) => {
+    if (!data || !data.room) {
+      log('Join attempt without room info');
+      return;
+    }
     const { room, deviceName } = data;
     socket.join(room);
     currentRoom = room;
@@ -40,32 +54,50 @@ io.on('connection', (socket) => {
     rooms[room] = rooms[room].filter(d => d.socketId !== socket.id);
     rooms[room].push({ socketId: socket.id, deviceName: deviceName || 'Unknown Device' });
     
-    console.log(`User ${socket.id} (${deviceName}) joined room: ${room}`);
+    log(`User ${socket.id} (${deviceName}) joined room: ${room}`);
     broadcastRoomStatus(room);
   });
 
   socket.on('clipboard_update', (data) => {
+    if (!data || !data.room || !data.encryptedData) return;
     const { room, encryptedData } = data;
     socket.to(room).emit('clipboard_update', encryptedData);
   });
 
   socket.on('exclude_device', (data) => {
+    if (!data || !data.room || !data.socketId) return;
     const { room, socketId } = data;
+    
+    log(`Excluding device ${socketId} from room ${room}`);
     // Notify the specific device to leave
     io.to(socketId).emit('excluded');
+    
+    // Force the socket to leave the room on server side
+    const targetSocket = io.sockets.sockets.get(socketId);
+    if (targetSocket) {
+      targetSocket.leave(room);
+    }
+    
+    // Update our rooms list immediately
+    if (rooms[room]) {
+      rooms[room] = rooms[room].filter(d => d.socketId !== socketId);
+      broadcastRoomStatus(room);
+    }
   });
 
   socket.on('ping_device', (data) => {
+    if (!data || !data.targetSocketId || !data.fromSocketId) return;
     const { targetSocketId, fromSocketId } = data;
     io.to(targetSocketId).emit('ping_device', { fromSocketId });
   });
 
   socket.on('pong_device', (data) => {
+    if (!data || !data.targetSocketId || !data.fromSocketId) return;
     const { targetSocketId, fromSocketId } = data;
     io.to(targetSocketId).emit('pong_device', { fromSocketId });
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', (reason) => {
     if (currentRoom && rooms[currentRoom]) {
       rooms[currentRoom] = rooms[currentRoom].filter(d => d.socketId !== socket.id);
       if (rooms[currentRoom].length === 0) {
@@ -74,11 +106,11 @@ io.on('connection', (socket) => {
         broadcastRoomStatus(currentRoom);
       }
     }
-    console.log('user disconnected:', socket.id);
+    log(`user disconnected: ${socket.id}, reason: ${reason}`);
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  log(`Server listening on port ${PORT}`);
 });

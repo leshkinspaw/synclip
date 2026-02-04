@@ -27,8 +27,9 @@ import {
 import { useTheme } from "@/components/theme-provider";
 import { getStorageData, setStorageData } from "@/lib/storage";
 import { useStatusStore } from "@/store/statusStore";
+import { useStatusUI } from "@/hooks/useStatusUI";
 import browser from 'webextension-polyfill';
-import { Globe, Shield, Wifi, WifiOff, RefreshCcw, Edit2, Moon, Sun, Monitor, Clock, Info } from "lucide-react";
+import { Globe, Shield, Edit2, Moon, Sun, Monitor, Clock, Info } from "lucide-react";
 
 export default function Settings() {
   const [serverUrl, setServerUrl] = useState("localhost:3000");
@@ -36,6 +37,8 @@ export default function Settings() {
   const { status, lastError, pollInterval, fetchStatus, updateStatus } = useStatusStore();
   const { theme, setTheme } = useTheme();
   
+  const { getStatusColor, getStatusIcon, getStatusLabel } = useStatusUI(status);
+
   const [isServerDialogOpen, setIsServerDialogOpen] = useState(false);
   const [editServerUrl, setEditServerUrl] = useState("");
   const [editUseSsl, setEditUseSsl] = useState(false);
@@ -75,23 +78,6 @@ export default function Settings() {
     fetchStatus();
   };
 
-  const getStatusColor = () => {
-    switch (status) {
-      case "connected": return "text-green-500";
-      case "connecting": return "text-yellow-500";
-      case "error": return "text-red-500";
-      default: return "text-gray-500";
-    }
-  };
-
-  const getStatusIcon = () => {
-    switch (status) {
-      case "connected": return <Wifi className="w-4 h-4" />;
-      case "connecting": return <RefreshCcw className="w-4 h-4 animate-spin" />;
-      default: return <WifiOff className="w-4 h-4" />;
-    }
-  };
-
   return (
     <div className="p-4 flex flex-col h-full space-y-4 overflow-y-auto">
       <Card className="shrink-0">
@@ -104,7 +90,7 @@ export default function Settings() {
               <TooltipTrigger asChild>
                 <div className={`flex items-center gap-1 text-xs font-medium cursor-default ${getStatusColor()}`}>
                   {getStatusIcon()}
-                  {status.toUpperCase()}
+                  {getStatusLabel()}
                 </div>
               </TooltipTrigger>
               {status === "error" && lastError && (

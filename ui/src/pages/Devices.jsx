@@ -19,6 +19,7 @@ import {
 import { getStorageData, setStorageData } from "@/lib/storage";
 import { generateSeedPhrase, validateSeedPhrase } from "@/lib/crypto";
 import { useStatusStore } from "@/store/statusStore";
+import { useStatusUI } from "@/hooks/useStatusUI";
 import browser from 'webextension-polyfill';
 import {
   Laptop,
@@ -32,8 +33,6 @@ import {
   Edit2,
   Copy,
   Check,
-  Wifi,
-  WifiOff,
   Key,
   AlertCircle
 } from "lucide-react";
@@ -43,6 +42,8 @@ export default function Devices() {
     devices, status, lastError, myId, deviceName, 
     fetchStatus, updateStatus 
   } = useStatusStore();
+
+  const { getStatusColor, getStatusIcon, getStatusLabel } = useStatusUI(status);
 
   const [editName, setEditName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -75,7 +76,7 @@ export default function Devices() {
     return () => {
       browser.runtime.onMessage.removeListener(listener);
     };
-  }, [fetchStatus, updateStatus]);
+  }, [fetchStatus]);
 
   const loadMyData = async () => {
     const data = await getStorageData(['deviceName', 'seedPhrase']);
@@ -93,14 +94,14 @@ export default function Devices() {
   };
 
   const handleLeaveGroup = async () => {
-    if (confirm("Are you sure you want to leave the sync group? This will clear your seed phrase.")) {
+    if (confirm("Are you sure you want to leave the sync group? This will clear your seed phrase and disconnect you.")) {
       await browser.runtime.sendMessage({ type: "LEAVE_GROUP" });
       window.location.reload();
     }
   };
 
-  const handleExclude = (socketId, name) => {
-    if (confirm(`Are you sure you want to exclude "${name}"?`)) {
+  const handleExclude = (socketId, deviceName) => {
+    if (confirm(`Are you sure you want to exclude "${deviceName}" from the sync group?`)) {
       browser.runtime.sendMessage({ type: "EXCLUDE_DEVICE", socketId });
     }
   };
@@ -147,23 +148,6 @@ export default function Devices() {
     });
   };
 
-  const getStatusColor = () => {
-    switch (status) {
-      case "connected": return "text-green-500";
-      case "connecting": return "text-yellow-500";
-      case "error": return "text-red-500";
-      default: return "text-gray-500";
-    }
-  };
-
-  const getStatusIcon = () => {
-    switch (status) {
-      case "connected": return <Wifi className="w-4 h-4" />;
-      case "connecting": return <RefreshCcw className="w-4 h-4 animate-spin" />;
-      default: return <WifiOff className="w-4 h-4" />;
-    }
-  };
-
   return (
     <div className="p-4 flex flex-col h-full space-y-4 overflow-y-auto">
       <Card className="shrink-0">
@@ -176,7 +160,7 @@ export default function Devices() {
               <TooltipTrigger asChild>
                 <div className={`flex items-center gap-1 text-xs font-medium cursor-default ${getStatusColor()}`}>
                   {getStatusIcon()}
-                  {status === "no_seed" ? "NO_SEED" : status.toUpperCase()}
+                  {getStatusLabel()}
                 </div>
               </TooltipTrigger>
               {status === "error" && lastError && (
@@ -355,7 +339,6 @@ export default function Devices() {
           </Button>
         </CardContent>
       </Card>
-
     </div>
   );
 }
