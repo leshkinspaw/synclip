@@ -88,7 +88,8 @@ export default function Devices() {
     await setStorageData({ deviceName: editName });
     updateStatus({ deviceName: editName });
     setIsDialogOpen(false);
-    browser.runtime.sendMessage({ type: "RECONNECT" });
+    await browser.runtime.sendMessage({ type: "RECONNECT" });
+    fetchStatus();
   };
 
   const handleLeaveGroup = async () => {
@@ -128,7 +129,8 @@ export default function Devices() {
     await setStorageData({ seedPhrase: editSeedPhrase });
     setSeedPhrase(editSeedPhrase);
     setIsSeedDialogOpen(false);
-    browser.runtime.sendMessage({ type: "RECONNECT" });
+    await browser.runtime.sendMessage({ type: "RECONNECT" });
+    fetchStatus();
   };
 
   const handleGenerate = () => {

@@ -33,7 +33,7 @@ import { Globe, Shield, Wifi, WifiOff, RefreshCcw, Edit2, Moon, Sun, Monitor, Cl
 export default function Settings() {
   const [serverUrl, setServerUrl] = useState("localhost:3000");
   const [useSsl, setUseSsl] = useState(false);
-  const { status, lastError, pollInterval, fetchStatus } = useStatusStore();
+  const { status, lastError, pollInterval, fetchStatus, updateStatus } = useStatusStore();
   const { theme, setTheme } = useTheme();
   
   const [isServerDialogOpen, setIsServerDialogOpen] = useState(false);
@@ -60,7 +60,8 @@ export default function Settings() {
     setServerUrl(editServerUrl);
     setUseSsl(editUseSsl);
     setIsServerDialogOpen(false);
-    browser.runtime.sendMessage({ type: "RECONNECT" });
+    await browser.runtime.sendMessage({ type: "RECONNECT" });
+    fetchStatus();
   };
 
   const handleSaveSync = async () => {
@@ -68,8 +69,10 @@ export default function Settings() {
     if (isNaN(interval) || interval <= 0) return;
     
     await setStorageData({ pollInterval: interval });
+    updateStatus({ pollInterval: interval });
     setIsSyncDialogOpen(false);
-    browser.runtime.sendMessage({ type: "RECONNECT" });
+    await browser.runtime.sendMessage({ type: "UPDATE_POLL_INTERVAL", pollInterval: interval });
+    fetchStatus();
   };
 
   const getStatusColor = () => {

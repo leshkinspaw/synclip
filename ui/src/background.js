@@ -51,6 +51,13 @@ async function setClipboardText(text) {
   }
 }
 
+async function setupPollAlarm(interval) {
+  pollInterval = interval;
+  await browser.alarms.clear('poll_clipboard');
+  browser.alarms.create('poll_clipboard', { periodInMinutes: pollInterval / 60 });
+  console.log(`Clipboard polling alarm set to ${pollInterval} seconds`);
+}
+
 async function initSync() {
   const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName', 'pollInterval']);
   if (!data.seedPhrase) {
@@ -60,15 +67,13 @@ async function initSync() {
   }
 
   deviceName = data.deviceName || `Device ${Math.floor(Math.random() * 1000)}`;
-  pollInterval = data.pollInterval || 1.2;
+  const newPollInterval = data.pollInterval || pollInterval;
   const serverUrl = data.serverUrl || "localhost:3000";
   const protocol = data.useSsl ? "https://" : "http://";
   const fullUrl = serverUrl.includes("://") ? serverUrl : protocol + serverUrl;
 
   // Setup alarm with the interval
-  await browser.alarms.clear('poll_clipboard');
-  browser.alarms.create('poll_clipboard', { periodInMinutes: pollInterval / 60 });
-  console.log(`Clipboard polling alarm set to ${pollInterval} seconds`);
+  await setupPollAlarm(newPollInterval);
 
   encryptionKey = deriveKey(data.seedPhrase);
   roomId = getRoomId(data.seedPhrase);
@@ -176,7 +181,9 @@ browser.runtime.onStartup.addListener(() => {
 
 browser.runtime.onMessage.addListener((message, sender) => {
     if (message.type === "RECONNECT") {
-        initSync();
+        return initSync();
+    } else if (message.type === "UPDATE_POLL_INTERVAL") {
+        return setupPollAlarm(message.pollInterval).then(() => ({ success: true }));
     } else if (message.type === "GET_STATUS") {
         return Promise.resolve({ 
           connectionStatus, 
