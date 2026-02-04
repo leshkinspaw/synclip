@@ -8,6 +8,8 @@ export const useStatusStore = create((set, get) => ({
   myId: '',
   deviceName: '',
   pollInterval: 1,
+  receiveClipboard: true,
+  sendClipboard: true,
 
   updateStatus: (data) => set((state) => ({ ...state, ...data })),
 
@@ -21,7 +23,9 @@ export const useStatusStore = create((set, get) => ({
           devices: response.roomDevices || [],
           myId: response.socketId,
           deviceName: response.deviceName || get().deviceName,
-          pollInterval: response.pollInterval || get().pollInterval
+          pollInterval: response.pollInterval || get().pollInterval,
+          receiveClipboard: response.receiveClipboard !== undefined ? response.receiveClipboard : get().receiveClipboard,
+          sendClipboard: response.sendClipboard !== undefined ? response.sendClipboard : get().sendClipboard
         });
       }
     } catch (error) {

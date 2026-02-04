@@ -12,6 +12,8 @@ let connectionStatus = "disconnected";
 let lastError = "";
 let deviceName = "Unknown Device";
 let pollInterval = 1;
+let receiveClipboard = true;
+let sendClipboard = true;
 let localSharing = { screen: false, camera: false };
 let activeTabs = {}; // tabId -> { shares: Set(), watches: Set() }
 
@@ -56,13 +58,17 @@ async function setClipboardText(text) {
 async function setupPollAlarm(interval) {
   pollInterval = interval;
   await browser.alarms.clear('poll_clipboard');
-  browser.alarms.create('poll_clipboard', { periodInMinutes: pollInterval / 60 });
-  console.log(`Clipboard polling alarm set to ${pollInterval} seconds`);
+  if (sendClipboard) {
+    browser.alarms.create('poll_clipboard', { periodInMinutes: pollInterval / 60 });
+    console.log(`Clipboard polling alarm set to ${pollInterval} seconds`);
+  } else {
+    console.log("Clipboard polling alarm disabled (sendClipboard is false)");
+  }
 }
 
 async function initSync() {
   try {
-    const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName', 'pollInterval']);
+    const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName', 'pollInterval', 'receiveClipboard', 'sendClipboard']);
     if (!data.seedPhrase) {
       console.log("No seed phrase found, skipping sync init.");
       connectionStatus = "no_seed";
@@ -71,6 +77,8 @@ async function initSync() {
 
     deviceName = data.deviceName || `Device ${Math.floor(Math.random() * 1000)}`;
     const newPollInterval = data.pollInterval || pollInterval;
+    receiveClipboard = data.receiveClipboard !== undefined ? data.receiveClipboard : true;
+    sendClipboard = data.sendClipboard !== undefined ? data.sendClipboard : true;
     const serverUrl = data.serverUrl || "localhost:3000";
     const protocol = data.useSsl ? "https://" : "http://";
     const fullUrl = serverUrl.includes("://") ? serverUrl : protocol + serverUrl;
@@ -146,6 +154,7 @@ async function initSync() {
     });
 
     socket.on('clipboard_update', (encryptedData) => {
+      if (!receiveClipboard) return;
       try {
         const decryptedText = decryptData(encryptedData, encryptionKey);
         if (decryptedText && decryptedText !== lastClipboardText) {
@@ -187,7 +196,7 @@ async function initSync() {
 
 // Poll for clipboard changes
 async function pollClipboard() {
-  if (socket?.connected && encryptionKey && roomId) {
+  if (socket?.connected && encryptionKey && roomId && sendClipboard) {
     try {
       const currentText = await getClipboardText();
       if (currentText && currentText !== lastClipboardText) {
@@ -219,6 +228,14 @@ const handlers = {
     await setupPollAlarm(message.pollInterval);
     return { success: true };
   },
+  "UPDATE_CLIPBOARD_SETTINGS": async (message) => {
+    if (message.receiveClipboard !== undefined) receiveClipboard = message.receiveClipboard;
+    if (message.sendClipboard !== undefined) {
+      sendClipboard = message.sendClipboard;
+      await setupPollAlarm(pollInterval); // Re-setup alarm to respect new sendClipboard state
+    }
+    return { success: true };
+  },
   "GET_STATUS": async () => {
     return {
       connectionStatus,
@@ -227,7 +244,9 @@ const handlers = {
       socketId: socket?.id,
       roomId,
       deviceName,
-      pollInterval
+      pollInterval,
+      receiveClipboard,
+      sendClipboard
     };
   },
   "EXCLUDE_DEVICE": async (message) => {

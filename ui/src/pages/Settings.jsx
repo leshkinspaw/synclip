@@ -29,12 +29,12 @@ import { getStorageData, setStorageData } from "@/lib/storage";
 import { useStatusStore } from "@/store/statusStore";
 import { useStatusUI } from "@/hooks/useStatusUI";
 import browser from 'webextension-polyfill';
-import { Globe, Shield, Edit2, Moon, Sun, Monitor, Clock, Info } from "lucide-react";
+import { Globe, Shield, Edit2, Moon, Sun, Monitor, Clock, Info, ClipboardList } from "lucide-react";
 
 export default function Settings() {
   const [serverUrl, setServerUrl] = useState("localhost:3000");
   const [useSsl, setUseSsl] = useState(false);
-  const { status, lastError, pollInterval, fetchStatus, updateStatus } = useStatusStore();
+  const { status, lastError, pollInterval, receiveClipboard, sendClipboard, fetchStatus, updateStatus } = useStatusStore();
   const { theme, setTheme } = useTheme();
   
   const { getStatusColor, getStatusIcon, getStatusLabel } = useStatusUI(status);
@@ -51,11 +51,27 @@ export default function Settings() {
   }, []);
 
   const loadSettings = async () => {
-    const data = await getStorageData(['serverUrl', 'useSsl', 'pollInterval']);
+    const data = await getStorageData(['serverUrl', 'useSsl', 'pollInterval', 'receiveClipboard', 'sendClipboard']);
     if (data.serverUrl) setServerUrl(data.serverUrl);
     if (data.useSsl !== undefined) setUseSsl(data.useSsl);
     if (data.pollInterval) setEditPollInterval(data.pollInterval);
+    updateStatus({
+      receiveClipboard: data.receiveClipboard !== undefined ? data.receiveClipboard : true,
+      sendClipboard: data.sendClipboard !== undefined ? data.sendClipboard : true
+    });
     fetchStatus();
+  };
+
+  const handleToggleReceive = async (val) => {
+    await setStorageData({ receiveClipboard: val });
+    updateStatus({ receiveClipboard: val });
+    await browser.runtime.sendMessage({ type: "UPDATE_CLIPBOARD_SETTINGS", receiveClipboard: val });
+  };
+
+  const handleToggleSend = async (val) => {
+    await setStorageData({ sendClipboard: val });
+    updateStatus({ sendClipboard: val });
+    await browser.runtime.sendMessage({ type: "UPDATE_CLIPBOARD_SETTINGS", sendClipboard: val });
   };
 
   const handleSaveServer = async () => {
@@ -161,7 +177,7 @@ export default function Settings() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Clock className="w-5 h-5" /> Polling Interval
+              <ClipboardList className="w-5 h-5" /> Clipboard Settings
             </CardTitle>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -184,13 +200,31 @@ export default function Settings() {
               </TooltipContent>
             </Tooltip>
           </div>
-          <CardDescription>Configure how often the clipboard is synced.</CardDescription>
+          <CardDescription>Configure how your clipboard is synced.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">Receive Updates</span>
+                <span className="text-[10px] text-muted-foreground">Receive clipboard from other devices</span>
+              </div>
+              <Switch checked={receiveClipboard} onCheckedChange={handleToggleReceive} />
+            </div>
+
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">Send Updates</span>
+                <span className="text-[10px] text-muted-foreground">Share this device's clipboard</span>
+              </div>
+              <Switch checked={sendClipboard} onCheckedChange={handleToggleSend} />
+            </div>
+          </div>
+
           <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
             <div className="flex flex-col">
               <span className="text-sm font-medium">{pollInterval} seconds</span>
-              {/*<span className="text-[10px] text-muted-foreground">Polling interval</span>*/}
+              <span className="text-[10px] text-muted-foreground">Polling interval</span>
             </div>
             
             <Dialog open={isSyncDialogOpen} onOpenChange={setIsSyncDialogOpen}>
