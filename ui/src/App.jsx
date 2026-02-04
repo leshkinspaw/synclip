@@ -38,7 +38,7 @@ function App() {
     <ThemeProvider defaultTheme="system" storageKey="synclip-theme">
       <TooltipProvider>
         <div className="w-[400px] h-[600px] bg-background text-foreground flex flex-col overflow-hidden">
-          <Tabs defaultValue="devices" className="w-full flex-1 flex flex-col overflow-hidden">
+          <Tabs defaultValue="share" className="w-full flex-1 flex flex-col overflow-hidden">
             <div className="px-4 pt-2 shrink-0">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="devices">Devices</TabsTrigger>
