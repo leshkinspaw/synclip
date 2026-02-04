@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import browser from 'webextension-polyfill';
 import { ThemeProvider } from "@/components/theme-provider";
-import { Monitor, Camera, Loader2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Monitor, Camera, Loader2, AlertCircle, Maximize2, Minimize2 } from "lucide-react";
 import "@/index.css";
 
 function Watch() {
@@ -11,8 +12,31 @@ function Watch() {
   const [targetId, setTargetId] = useState(null);
   const [isObs, setIsObs] = useState(false);
   const [error, setError] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const pcRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -186,9 +210,19 @@ function Watch() {
         )}
 
         {!isObs && (
-          <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-md p-2 rounded-lg border border-white/10 flex items-center gap-2 text-white">
-            {type === 'screen' ? <Monitor className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
-            <span className="text-xs font-medium uppercase tracking-wider">{type === 'screen' ? 'Screenshare' : 'Camera'}</span>
+          <div className="absolute top-4 left-4 flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="bg-black/50 backdrop-blur-md text-white border-white/10 hover:bg-white/10 h-8 w-8"
+              onClick={toggleFullscreen}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </Button>
+            <div className="bg-black/50 backdrop-blur-md p-2 h-8 rounded-lg border border-white/10 flex items-center gap-2 text-white">
+              {type === 'screen' ? <Monitor className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
+              <span className="text-xs font-medium uppercase tracking-wider">{type === 'screen' ? 'Screenshare' : 'Camera'}</span>
+            </div>
           </div>
         )}
       </div>

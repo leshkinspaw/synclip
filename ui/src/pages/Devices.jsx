@@ -227,7 +227,7 @@ export default function Devices() {
                 <div className="flex flex-col">
                   <span className="text-sm font-medium flex items-center gap-2">
                     {device.deviceName}
-                    {device.socketId === myId && <span className="text-[10px] bg-primary text-primary-foreground px-1 rounded">YOU</span>}
+                    {device.socketId === myId && <span className="text-[10px] bg-primary text-primary-foreground px-1 rounded">THIS DEVICE</span>}
                   </span>
                   <span className="text-[10px] text-muted-foreground font-mono">{device.socketId}</span>
                 </div>
