@@ -130,7 +130,7 @@ export default function Share() {
             <div className="mt-4 pt-4 border-t border-border">
               <h4 className="text-sm font-medium flex items-center gap-2 mb-2">
                 <Eye className="w-4 h-4 text-muted-foreground" />
-                Other devices ({Object.keys(groupedMonitors).length}):
+                Watchers ({Object.keys(groupedMonitors).length}):
               </h4>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(groupedMonitors).map(([socketId, data]) => (
