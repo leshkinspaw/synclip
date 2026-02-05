@@ -34,7 +34,11 @@ export default function Share() {
     try {
       const tabs = await browser.tabs.query({ url: browser.runtime.getURL('share-stream.html*') });
       if (tabs.length > 0) {
-        await browser.tabs.update(tabs[0].id, { active: true });
+        const tab = tabs[0];
+        await browser.tabs.update(tab.id, { active: true });
+        if (tab.windowId) {
+          await browser.windows.update(tab.windowId, { focused: true });
+        }
         browser.runtime.sendMessage({ type: "START_SHARE_FROM_POPUP", streamType: type });
       } else {
         const url = browser.runtime.getURL(`share-stream.html?type=${type}`);
@@ -49,9 +53,26 @@ export default function Share() {
     browser.runtime.sendMessage({ type: "STOP_SHARE", streamType: type });
   };
 
-  const handleWatch = (targetSocketId, streamType) => {
-    const url = browser.runtime.getURL(`watch.html?targetId=${targetSocketId}&type=${streamType}`);
-    browser.tabs.create({ url });
+  const handleWatch = async (targetSocketId, streamType) => {
+    try {
+      const url = browser.runtime.getURL(`watch.html?targetId=${targetSocketId}&type=${streamType}`);
+      const tabs = await browser.tabs.query({ url: browser.runtime.getURL('watch.html*') });
+      const existingTab = tabs.find(tab => tab.url === url);
+
+      if (existingTab) {
+        await browser.tabs.update(existingTab.id, { active: true });
+        if (existingTab.windowId) {
+          await browser.windows.update(existingTab.windowId, { focused: true });
+        }
+      } else {
+        await browser.tabs.create({ url });
+      }
+    } catch (err) {
+      console.error(`Failed to watch ${streamType}:`, err);
+      // Fallback
+      const url = browser.runtime.getURL(`watch.html?targetId=${targetSocketId}&type=${streamType}`);
+      browser.tabs.create({ url });
+    }
   };
 
   const copyOBSLink = (targetSocketId) => {
