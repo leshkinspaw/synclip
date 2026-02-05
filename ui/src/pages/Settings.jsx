@@ -202,34 +202,32 @@ export default function Settings() {
           </div>
           <CardDescription>Configure how your clipboard is synced.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">Receive Updates</span>
-                <span className="text-[10px] text-muted-foreground">Receive clipboard from other devices</span>
-              </div>
-              <Switch checked={receiveClipboard} onCheckedChange={handleToggleReceive} />
+        <CardContent className="space-y-2 divide-y">
+          <div className="flex items-center justify-between pt-2">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">Receive Updates</span>
+              <span className="text-[10px] text-muted-foreground">Receive clipboard from other devices</span>
             </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">Send Updates</span>
-                <span className="text-[10px] text-muted-foreground">Share this device's clipboard</span>
-              </div>
-              <Switch checked={sendClipboard} onCheckedChange={handleToggleSend} />
-            </div>
+            <Switch checked={receiveClipboard} onCheckedChange={handleToggleReceive} />
           </div>
 
-          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
+          <div className="flex items-center justify-between pt-2">
             <div className="flex flex-col">
-              <span className="text-sm font-medium">{pollInterval} seconds</span>
-              <span className="text-[10px] text-muted-foreground">Polling interval</span>
+              <span className="text-sm font-medium">Send Updates</span>
+              <span className="text-[10px] text-muted-foreground">Share this device's clipboard</span>
             </div>
-            
+            <Switch checked={sendClipboard} onCheckedChange={handleToggleSend} />
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">{pollInterval} s</span>
+              <span className="text-[10px] text-muted-foreground">Polling interval in seconds</span>
+            </div>
+
             <Dialog open={isSyncDialogOpen} onOpenChange={setIsSyncDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" onClick={() => {
+                <Button variant="outline" size="xs" className="mt-0.5" onClick={() => {
                   setEditPollInterval(pollInterval);
                 }}>
                   <Edit2 className="w-4 h-4 mr-2" /> Edit
@@ -245,13 +243,13 @@ export default function Settings() {
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Polling Interval (seconds)</label>
-                    <Input 
-                      type="number"
-                      min="0.1"
-                      step="0.1"
-                      value={editPollInterval} 
-                      onChange={(e) => setEditPollInterval(e.target.value)} 
-                      placeholder="e.g. 1.2"
+                    <Input
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={editPollInterval}
+                        onChange={(e) => setEditPollInterval(e.target.value)}
+                        placeholder="e.g. 1.2"
                     />
                     <p className="text-[10px] text-muted-foreground">
                       Lower values mean faster sync but higher battery/CPU usage.
