@@ -27,16 +27,28 @@
             const socket = io();
             let pc = null;
             let pendingCandidates = [];
+            let isWatching = false;
 
-            socket.on('connect', () => {
-                statusEl.innerText = 'Connected to server, joining room...';
-                socket.emit('join', { room: roomId, deviceName: 'OBS Viewer' });
-                
-                startWatching();
-            });
+            function stopWatching() {
+                if (pc) {
+                    pc.close();
+                    pc = null;
+                }
+                socket.emit('leave_watch', {
+                    targetSocketId: targetId,
+                    streamType: type
+                });
+                pendingCandidates = [];
+                isWatching = false;
+                videoEl.srcObject = null;
+            }
 
             async function startWatching() {
+                if (isWatching) return;
+                isWatching = true;
+
                 statusEl.innerText = 'Connecting to stream...';
+                statusEl.style.display = 'block';
                 socket.emit('join_watch', {
                     targetSocketId: targetId,
                     streamType: type,
@@ -91,6 +103,11 @@
                 });
             }
 
+            socket.on('connect', () => {
+                statusEl.innerText = 'Connected to server, joining room...';
+                socket.emit('join', { room: roomId, deviceName: 'OBS Viewer' });
+            });
+
             socket.on('signal', async (data) => {
                 if (data.from !== targetId || data.streamType !== type) return;
                 
@@ -115,10 +132,21 @@
 
             socket.on('room_status', (devices) => {
                 const target = devices.find(d => d.socketId === targetId);
-                if (!target || !target.sharing || !target.sharing[type]) {
-                    statusEl.innerText = 'Stream ended';
+                const isSharing = target && target.sharing && target.sharing[type];
+                
+                if (isSharing && !isWatching) {
+                    startWatching();
+                } else if (!isSharing && isWatching) {
+                    stopWatching();
+                    statusEl.innerText = 'Stream ended. Waiting for restart...';
                     statusEl.style.display = 'block';
-                    videoEl.srcObject = null;
+                } else if (target && !isSharing && !isWatching) {
+                    statusEl.innerText = 'Target device online, but not sharing ' + type;
+                    statusEl.style.display = 'block';
+                } else if (!target) {
+                    if (isWatching) stopWatching();
+                    statusEl.innerText = 'Target device offline';
+                    statusEl.style.display = 'block';
                 }
             });
 

@@ -292,10 +292,12 @@ const handlers = {
         }
       }
     }
+    
+    // Always notify any open share-stream tabs to stop locally
+    browser.runtime.sendMessage({ type: "STOP_SHARE_LOCAL", streamType: message.streamType }).catch(() => {});
+
     if (socket?.connected) {
       socket.emit('stop_share', { type: message.streamType });
-      // Notify any open share-stream tabs to stop
-      browser.runtime.sendMessage({ type: "STOP_SHARE_LOCAL", streamType: message.streamType }).catch(() => {});
     }
   },
   "SIGNAL": async (message) => {

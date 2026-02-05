@@ -26,9 +26,9 @@ function ShareStream() {
       if (message.type === "SIGNAL") {
         handleSignal(message.from, message.signal, message.streamType);
       } else if (message.type === "STOP_SHARE_LOCAL") {
-        stopStreaming(message.streamType);
+        stopStreaming(message.streamType, true);
       } else if (message.type === "ROOM_STATUS_UPDATED") {
-        updateMonitors(message.devices);
+        updateMonitors(message.devices, message.socketId);
       } else if (message.type === "START_SHARE_FROM_POPUP") {
         startStreaming(message.streamType);
       }
@@ -39,7 +39,7 @@ function ShareStream() {
     // Initial monitor check
     browser.runtime.sendMessage({ type: "GET_STATUS" }).then(status => {
       if (status && status.roomDevices) {
-        updateMonitors(status.roomDevices);
+        updateMonitors(status.roomDevices, status.socketId);
       }
     });
 
@@ -51,14 +51,21 @@ function ShareStream() {
     };
   }, []);
 
-  const updateMonitors = (devices) => {
-    browser.runtime.sendMessage({ type: "GET_STATUS" }).then(status => {
-      const myId = status?.socketId;
+  const updateMonitors = (devices, myIdFromMessage) => {
+    const handleMyId = (myId) => {
       const me = devices.find(d => d.socketId === myId);
       if (me?.monitors) {
         setMonitors(me.monitors);
       }
-    });
+    };
+
+    if (myIdFromMessage) {
+      handleMyId(myIdFromMessage);
+    } else {
+      browser.runtime.sendMessage({ type: "GET_STATUS" }).then(status => {
+        if (status?.socketId) handleMyId(status.socketId);
+      });
+    }
   };
 
   const startStreaming = async (streamType) => {
@@ -91,14 +98,15 @@ function ShareStream() {
     }
   };
 
-  const stopStreaming = (streamType) => {
+  const stopStreaming = (streamType, skipNotify = false) => {
+    let changed = false;
+
     if (streamsRef.current[streamType]) {
       streamsRef.current[streamType].getTracks().forEach(track => track.stop());
       streamsRef.current[streamType] = null;
       setStreams(prev => ({ ...prev, [streamType]: null }));
+      changed = true;
     }
-    
-    browser.runtime.sendMessage({ type: "STOP_SHARE", streamType });
     
     // Close connections for this stream type
     Object.keys(peersRef.current).forEach(key => {
@@ -106,8 +114,13 @@ function ShareStream() {
         peersRef.current[key].close();
         delete peersRef.current[key];
         delete pendingCandidatesRef.current[key];
+        changed = true;
       }
     });
+
+    if (changed && !skipNotify) {
+      browser.runtime.sendMessage({ type: "STOP_SHARE", streamType });
+    }
   };
 
   const handleSignal = async (fromId, signal, sType) => {

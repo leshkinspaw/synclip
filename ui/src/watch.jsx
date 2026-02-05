@@ -59,9 +59,15 @@ function Watch() {
         handleSignal(message.signal);
       } else if (message.type === "ROOM_STATUS_UPDATED") {
         const targetDevice = message.devices.find(d => d.socketId === target);
-        if (!targetDevice || !targetDevice.sharing?.[streamType]) {
-          setError("Stream ended");
+        const isSharing = targetDevice?.sharing?.[streamType];
+        
+        if (!isSharing && pcRef.current) {
           stopWatching();
+          setStream(null);
+          setError("Stream ended");
+        } else if (isSharing && !pcRef.current) {
+          setError(null);
+          startWatching(target, streamType);
         }
       }
     };
