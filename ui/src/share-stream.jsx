@@ -278,7 +278,7 @@ function ShareStream() {
             <div className="space-y-3 pt-4 border-t">
               <h4 className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
                 <Eye className="w-4 h-4" />
-                Other devices ({activeCount})
+                Watchers ({activeCount})
               </h4>
               <div className="flex flex-wrap gap-3 min-h-[50px] p-3 bg-secondary/20 rounded-xl border border-border/50">
                 {activeCount === 0 ? (
