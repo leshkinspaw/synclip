@@ -7,15 +7,6 @@ const path = require('path');
 const app = express();
 app.use(cors());
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', rooms: Object.keys(rooms).length });
-});
-
-app.get('/obs', (req, res) => {
-  res.sendFile(path.join(__dirname, 'obs.html'));
-});
-
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -24,14 +15,47 @@ const io = new Server(server, {
   }
 });
 
-const rooms = {}; // room -> [ { socketId, deviceName } ]
+// Health check endpoint
+app.get('/health', (req, res) => {
+  const allRooms = io.sockets.adapter.rooms;
+  let roomCount = 0;
+  for (const [name, set] of allRooms) {
+    if (!io.sockets.sockets.has(name)) {
+      roomCount++;
+    }
+  }
+  res.status(200).json({ status: 'ok', rooms: roomCount });
+});
 
-function getRoomDevices(room) {
-  return rooms[room] || [];
-}
+app.get('/obs', (req, res) => {
+  res.sendFile(path.join(__dirname, 'obs.html'));
+});
 
-function broadcastRoomStatus(room) {
-  const devices = getRoomDevices(room);
+async function broadcastRoomStatus(room) {
+  const sockets = await io.in(room).fetchSockets();
+  const devices = sockets.map(s => ({
+    socketId: s.id,
+    deviceName: s.data.deviceName || 'Unknown Device',
+    sharing: s.data.sharing || { screen: false, camera: false },
+    monitors: []
+  }));
+
+  // Reconstruct monitors list
+  sockets.forEach(s => {
+    if (s.data.watching) {
+      s.data.watching.forEach(w => {
+        const target = devices.find(d => d.socketId === w.targetSocketId);
+        if (target) {
+          target.monitors.push({
+            socketId: s.id,
+            deviceName: s.data.deviceName,
+            type: w.streamType
+          });
+        }
+      });
+    }
+  });
+
   io.to(room).emit('room_status', devices);
 }
 
@@ -44,59 +68,48 @@ io.on('connection', (socket) => {
   log('a user connected:', socket.id);
   let currentRoom = null;
 
-  socket.on('join', (data) => {
+  socket.on('join', async (data) => {
     if (!data || !data.room) {
       log('Join attempt without room info');
       return;
     }
     const { room, deviceName } = data;
-    socket.join(room);
+    await socket.join(room);
     currentRoom = room;
     
-    if (!rooms[room]) rooms[room] = [];
-    
-    // Remove if already exists (should not happen normally)
-    rooms[room] = rooms[room].filter(d => d.socketId !== socket.id);
-    rooms[room].push({ 
-      socketId: socket.id, 
-      deviceName: deviceName || 'Unknown Device',
-      sharing: { screen: false, camera: false },
-      monitors: [] // { socketId, deviceName, type }
-    });
+    socket.data.deviceName = deviceName || 'Unknown Device';
+    socket.data.sharing = { screen: false, camera: false };
+    socket.data.watching = [];
     
     log(`User ${socket.id} (${deviceName}) joined room: ${room}`);
-    broadcastRoomStatus(room);
+    await broadcastRoomStatus(room);
   });
 
-  socket.on('start_share', (data) => {
+  socket.on('start_share', async (data) => {
     if (!currentRoom || !data || !data.type) return;
     const { type } = data; // 'screen' or 'camera'
-    if (rooms[currentRoom]) {
-      const device = rooms[currentRoom].find(d => d.socketId === socket.id);
-      if (device) {
-        if (!device.sharing) device.sharing = { screen: false, camera: false };
-        device.sharing[type] = true;
-        log(`User ${socket.id} started sharing ${type} in room: ${currentRoom}`);
-        broadcastRoomStatus(currentRoom);
-      }
-    }
+    
+    if (!socket.data.sharing) socket.data.sharing = { screen: false, camera: false };
+    socket.data.sharing[type] = true;
+    
+    log(`User ${socket.id} started sharing ${type} in room: ${currentRoom}`);
+    await broadcastRoomStatus(currentRoom);
   });
 
-  socket.on('stop_share', (data) => {
+  socket.on('stop_share', async (data) => {
     if (!currentRoom || !data || !data.type) return;
     const { type } = data;
-    if (rooms[currentRoom]) {
-      const device = rooms[currentRoom].find(d => d.socketId === socket.id);
-      if (device) {
-        if (!device.sharing) device.sharing = { screen: false, camera: false };
-        device.sharing[type] = false;
-        // Also remove monitors for this share type
-        if (!device.monitors) device.monitors = [];
-        device.monitors = device.monitors.filter(m => m.type !== type);
-        log(`User ${socket.id} stopped sharing ${type} in room: ${currentRoom}`);
-        broadcastRoomStatus(currentRoom);
-      }
-    }
+    
+    if (!socket.data.sharing) socket.data.sharing = { screen: false, camera: false };
+    socket.data.sharing[type] = false;
+    
+    // Also remove any of our "watching" that were for this type? 
+    // Wait, stop_share means THIS device stops sharing. 
+    // Monitors are OTHER devices watching THIS device.
+    // Reconstructing monitors will naturally handle this because sharing[type] is now false.
+    
+    log(`User ${socket.id} stopped sharing ${type} in room: ${currentRoom}`);
+    await broadcastRoomStatus(currentRoom);
   });
 
   socket.on('signal', (data) => {
@@ -109,30 +122,26 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('join_watch', (data) => {
+  socket.on('join_watch', async (data) => {
     if (!currentRoom || !data || !data.targetSocketId || !data.streamType) return;
-    const { targetSocketId, streamType, deviceName } = data;
-    if (rooms[currentRoom]) {
-      const targetDevice = rooms[currentRoom].find(d => d.socketId === targetSocketId);
-      if (targetDevice) {
-        // Add to monitors if not already there
-        if (!targetDevice.monitors.find(m => m.socketId === socket.id && m.type === streamType)) {
-          targetDevice.monitors.push({ socketId: socket.id, deviceName, type: streamType });
-          broadcastRoomStatus(currentRoom);
-        }
-      }
+    const { targetSocketId, streamType } = data;
+    
+    if (!socket.data.watching) socket.data.watching = [];
+    
+    // Add to watching if not already there
+    if (!socket.data.watching.find(w => w.targetSocketId === targetSocketId && w.streamType === streamType)) {
+      socket.data.watching.push({ targetSocketId, streamType });
+      await broadcastRoomStatus(currentRoom);
     }
   });
 
-  socket.on('leave_watch', (data) => {
+  socket.on('leave_watch', async (data) => {
     if (!currentRoom || !data || !data.targetSocketId || !data.streamType) return;
     const { targetSocketId, streamType } = data;
-    if (rooms[currentRoom]) {
-      const targetDevice = rooms[currentRoom].find(d => d.socketId === targetSocketId);
-      if (targetDevice) {
-        targetDevice.monitors = targetDevice.monitors.filter(m => !(m.socketId === socket.id && m.type === streamType));
-        broadcastRoomStatus(currentRoom);
-      }
+    
+    if (socket.data.watching) {
+      socket.data.watching = socket.data.watching.filter(w => !(w.targetSocketId === targetSocketId && w.streamType === streamType));
+      await broadcastRoomStatus(currentRoom);
     }
   });
 
@@ -142,7 +151,7 @@ io.on('connection', (socket) => {
     socket.to(room).emit('clipboard_update', encryptedData);
   });
 
-  socket.on('exclude_device', (data) => {
+  socket.on('exclude_device', async (data) => {
     if (!data || !data.room || !data.socketId) return;
     const { room, socketId } = data;
     
@@ -153,14 +162,10 @@ io.on('connection', (socket) => {
     // Force the socket to leave the room on server side
     const targetSocket = io.sockets.sockets.get(socketId);
     if (targetSocket) {
-      targetSocket.leave(room);
+      await targetSocket.leave(room);
     }
     
-    // Update our rooms list immediately
-    if (rooms[room]) {
-      rooms[room] = rooms[room].filter(d => d.socketId !== socketId);
-      broadcastRoomStatus(room);
-    }
+    await broadcastRoomStatus(room);
   });
 
   socket.on('ping_device', (data) => {
@@ -175,14 +180,9 @@ io.on('connection', (socket) => {
     io.to(targetSocketId).emit('pong_device', { fromSocketId });
   });
 
-  socket.on('disconnect', (reason) => {
-    if (currentRoom && rooms[currentRoom]) {
-      rooms[currentRoom] = rooms[currentRoom].filter(d => d.socketId !== socket.id);
-      if (rooms[currentRoom].length === 0) {
-        delete rooms[currentRoom];
-      } else {
-        broadcastRoomStatus(currentRoom);
-      }
+  socket.on('disconnect', async (reason) => {
+    if (currentRoom) {
+      await broadcastRoomStatus(currentRoom);
     }
     log(`user disconnected: ${socket.id}, reason: ${reason}`);
   });
