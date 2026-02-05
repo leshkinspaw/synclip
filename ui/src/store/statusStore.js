@@ -12,6 +12,7 @@ export const useStatusStore = create((set, get) => ({
   pollInterval: 1,
   receiveClipboard: true,
   sendClipboard: true,
+  interfaceMode: 'sidebar',
 
   updateStatus: (data) => set((state) => ({ ...state, ...data })),
 
@@ -29,7 +30,8 @@ export const useStatusStore = create((set, get) => ({
           deviceName: response.deviceName || get().deviceName,
           pollInterval: response.pollInterval || get().pollInterval,
           receiveClipboard: response.receiveClipboard !== undefined ? response.receiveClipboard : get().receiveClipboard,
-          sendClipboard: response.sendClipboard !== undefined ? response.sendClipboard : get().sendClipboard
+          sendClipboard: response.sendClipboard !== undefined ? response.sendClipboard : get().sendClipboard,
+          interfaceMode: response.interfaceMode || get().interfaceMode
         });
       }
     } catch (error) {

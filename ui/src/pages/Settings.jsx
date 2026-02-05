@@ -34,7 +34,7 @@ import { Globe, Shield, Edit2, Moon, Sun, Monitor, Clock, Info, ClipboardList, R
 export default function Settings() {
   const [serverUrl, setServerUrl] = useState("localhost:3000");
   const [useSsl, setUseSsl] = useState(false);
-  const { status, lastError, pollInterval, receiveClipboard, sendClipboard, fetchStatus, updateStatus } = useStatusStore();
+  const { status, lastError, pollInterval, receiveClipboard, sendClipboard, interfaceMode, fetchStatus, updateStatus } = useStatusStore();
   const { theme, setTheme } = useTheme();
   
   const { getStatusColor, getStatusIcon, getStatusLabel } = useStatusUI(status);
@@ -74,6 +74,53 @@ export default function Settings() {
     await browser.runtime.sendMessage({ type: "UPDATE_CLIPBOARD_SETTINGS", sendClipboard: val });
   };
 
+  const handleToggleInterface = (val) => {
+    // Determine if we are currently in a sidebar or popup
+    const params = new URLSearchParams(window.location.search);
+    const isSidebar = params.get('view') === 'sidebar';
+
+    // 1. Update state and notify background immediately (non-blocking)
+    setStorageData({ interfaceMode: val });
+    updateStatus({ interfaceMode: val });
+    browser.runtime.sendMessage({ type: "UPDATE_INTERFACE_MODE", interfaceMode: val });
+
+    // 2. Handle the UI opening IMMEDIATELY to preserve user gesture
+    if (val === 'sidebar' && !isSidebar) {
+      if (window.chrome && chrome.sidePanel && chrome.sidePanel.setOptions && chrome.sidePanel.open) {
+        // Ensure side panel is enabled and configured BEFORE opening it
+        chrome.sidePanel.setOptions({
+          path: 'index.html?view=sidebar',
+          enabled: true
+        });
+
+        // Use callback to better preserve user gesture context
+        chrome.windows.getLastFocused({ windowTypes: ['normal'] }, (currentWindow) => {
+          if (currentWindow) {
+            chrome.sidePanel.open({ windowId: currentWindow.id }).catch(e => {
+              console.error("Side panel open error:", e);
+            });
+          }
+          window.close();
+        });
+      }
+    } else if (val === 'popup' && isSidebar) {
+      if (window.chrome && chrome.action && chrome.action.openPopup) {
+        // CRITICAL: Ensure popup is configured BEFORE attempting to open it
+        // This avoids the race condition with the background script's applyInterfaceMode
+        chrome.action.setPopup({ popup: 'index.html' });
+
+        chrome.windows.getLastFocused({ windowTypes: ['normal'] }, (currentWindow) => {
+          if (currentWindow) {
+            chrome.action.openPopup({ windowId: currentWindow.id }).catch(e => {
+              console.error("Popup open error:", e);
+            });
+          }
+          window.close();
+        });
+      }
+    }
+  };
+
   const handleSaveServer = async () => {
     await setStorageData({ serverUrl: editServerUrl, useSsl: editUseSsl });
     setServerUrl(editServerUrl);
@@ -94,8 +141,10 @@ export default function Settings() {
     fetchStatus();
   };
 
+  const hasSidePanelSupport = !!(window.chrome && chrome.sidePanel && chrome.sidePanel.setOptions);
+
   return (
-    <div className="p-4 flex flex-col h-full space-y-4 overflow-y-auto">
+    <div className="pr-4 pl-0 py-4 flex flex-col h-full space-y-4 overflow-y-auto">
       <Card className="shrink-0">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -288,7 +337,7 @@ export default function Settings() {
           </CardTitle>
           <CardDescription>Customize the look and feel of the extension.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Theme</span>
             <Select value={theme} onValueChange={setTheme}>
@@ -314,6 +363,19 @@ export default function Settings() {
               </SelectContent>
             </Select>
           </div>
+
+          {hasSidePanelSupport && (
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">Sidebar Mode</span>
+                <span className="text-[10px] text-muted-foreground">Show extension in the side panel</span>
+              </div>
+              <Switch 
+                checked={interfaceMode === 'sidebar'} 
+                onCheckedChange={(val) => handleToggleInterface(val ? 'sidebar' : 'popup')} 
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

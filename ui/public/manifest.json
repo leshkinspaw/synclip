@@ -10,13 +10,15 @@
     "notifications",
     "alarms",
     "offscreen",
-    "tabs"
+    "tabs",
+    "sidePanel"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
-  "action": {
-    "default_popup": "index.html"
+  "action": {},
+  "side_panel": {
+    "default_path": "index.html?view=sidebar"
   },
   "background": {
     "service_worker": "background.js",

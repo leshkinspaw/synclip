@@ -15,6 +15,7 @@ let serverUrl = "";
 let pollInterval = 1;
 let receiveClipboard = true;
 let sendClipboard = true;
+let interfaceMode = "sidebar";
 let localSharing = { screen: false, camera: false };
 let activeTabs = {}; // tabId -> { shares: Set(), watches: Set() }
 
@@ -67,9 +68,33 @@ async function setupPollAlarm(interval) {
   }
 }
 
+async function applyInterfaceMode(mode) {
+  interfaceMode = mode;
+  if (mode === 'popup') {
+    if (chrome.action) {
+      await chrome.action.setPopup({ popup: 'index.html' });
+    }
+    if (chrome.sidePanel && chrome.sidePanel.setOptions) {
+      await chrome.sidePanel.setOptions({
+        enabled: false
+      }).catch(() => {});
+    }
+  } else {
+    if (chrome.action) {
+      await chrome.action.setPopup({ popup: '' });
+    }
+    if (chrome.sidePanel && chrome.sidePanel.setOptions) {
+      await chrome.sidePanel.setOptions({
+        path: 'index.html?view=sidebar',
+        enabled: true
+      }).catch(err => console.error("Error setting side panel options:", err));
+    }
+  }
+}
+
 async function initSync() {
   try {
-    const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName', 'pollInterval', 'receiveClipboard', 'sendClipboard']);
+    const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName', 'pollInterval', 'receiveClipboard', 'sendClipboard', 'interfaceMode']);
     if (!data.seedPhrase) {
       console.log("No seed phrase found, skipping sync init.");
       connectionStatus = "no_seed";
@@ -80,7 +105,12 @@ async function initSync() {
     const newPollInterval = data.pollInterval || pollInterval;
     receiveClipboard = data.receiveClipboard !== undefined ? data.receiveClipboard : true;
     sendClipboard = data.sendClipboard !== undefined ? data.sendClipboard : true;
+    interfaceMode = data.interfaceMode || "sidebar";
     const srvUrl = data.serverUrl || "localhost:3000";
+
+    // Apply interface mode
+    await applyInterfaceMode(interfaceMode);
+
     const protocol = data.useSsl ? "https://" : "http://";
     serverUrl = srvUrl.includes("://") ? srvUrl : protocol + srvUrl;
 
@@ -217,6 +247,14 @@ browser.runtime.onInstalled.addListener(() => {
   initSync();
 });
 
+// Open side panel on action click
+if (chrome.action && chrome.sidePanel && chrome.sidePanel.open) {
+  chrome.action.onClicked.addListener((tab) => {
+    chrome.sidePanel.open({ windowId: tab.windowId })
+      .catch((error) => console.error("Error opening side panel:", error));
+  });
+}
+
 browser.runtime.onStartup.addListener(() => {
     initSync();
 });
@@ -237,6 +275,12 @@ const handlers = {
     }
     return { success: true };
   },
+  "UPDATE_INTERFACE_MODE": async (message) => {
+    if (message.interfaceMode) {
+      await applyInterfaceMode(message.interfaceMode);
+    }
+    return { success: true };
+  },
   "GET_STATUS": async () => {
     return {
       connectionStatus,
@@ -248,7 +292,8 @@ const handlers = {
       deviceName,
       pollInterval,
       receiveClipboard,
-      sendClipboard
+      sendClipboard,
+      interfaceMode
     };
   },
   "EXCLUDE_DEVICE": async (message) => {
