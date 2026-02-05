@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils"
 import Devices from './pages/Devices'
 import Settings from './pages/Settings'
 import Share from './pages/Share'
-import {Button} from "@/components/ui/button.jsx";
-import {ChevronRight} from "lucide-react";
+import { Button } from "@/components/ui/button"
+import { ChevronRight } from "lucide-react"
 
 function App() {
   const { fetchStatus, updateStatus } = useStatusStore();
@@ -65,10 +65,11 @@ function App() {
               defaultValue="share" 
               className={cn(
                 "w-full flex-1 flex flex-col overflow-hidden transition-transform duration-300 ease-in-out",
-                isSidebar && isHovered ? "translate-x-2" : "translate-x-0"
+                isSidebar && isHovered ? "translate-x-2" : "translate-x-0",
+                !isSidebar && "pl-4"
               )}
             >
-              <div className="pr-4 pl-0 pt-2 shrink-0">
+              <div className="pr-4 pt-2 shrink-0">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="devices">Devices</TabsTrigger>
                   <TabsTrigger value="share">Share</TabsTrigger>

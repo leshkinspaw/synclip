@@ -95,7 +95,7 @@ export default function Share() {
   }, {}) || {};
 
   return (
-    <div className="pr-4 pl-0 py-4 flex flex-col h-full overflow-y-auto space-y-4">
+    <div className="pr-4 py-4 flex flex-col h-full overflow-y-auto space-y-4">
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">

@@ -144,7 +144,7 @@ export default function Settings() {
   const hasSidePanelSupport = !!(window.chrome && chrome.sidePanel && chrome.sidePanel.setOptions);
 
   return (
-    <div className="pr-4 pl-0 py-4 flex flex-col h-full space-y-4 overflow-y-auto">
+    <div className="pr-4 py-4 flex flex-col h-full space-y-4 overflow-y-auto">
       <Card className="shrink-0">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
