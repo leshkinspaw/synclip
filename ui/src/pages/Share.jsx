@@ -202,7 +202,7 @@ export default function Share() {
                           <Camera className="w-3.5 h-3.5 text-primary" />
                           <span>Camera + Mic</span>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-2.5">
                           <Button variant="outline" size="xs" className="h-7 px-2 text-[10px]" onClick={() => copyOBSLink(device.socketId)}>
                             {copiedId === device.socketId ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                             <span className="ml-1">OBS</span>

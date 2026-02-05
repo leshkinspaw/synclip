@@ -202,8 +202,8 @@ export default function Settings() {
           </div>
           <CardDescription>Configure how your clipboard is synced.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
+        <CardContent className="space-y-2">
+          <div className="space-y-2">
             <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
               <div className="flex flex-col">
                 <span className="text-sm font-medium">Receive Updates</span>
