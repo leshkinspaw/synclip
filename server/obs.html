@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SynClip OBS Viewer</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: black; overflow: hidden; display: flex; justify-content: center; align-items: center; color: white; font-family: sans-serif; }
+        video { max-width: 100%; max-height: 100%; object-fit: contain; }
+        #status { position: absolute; top: 10px; left: 10px; font-size: 12px; opacity: 0.5; z-index: 10; }
+    </style>
+</head>
+<body>
+    <div id="status">Connecting...</div>
+    <video id="remoteVideo" autoplay playsinline></video>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const roomId = params.get('roomId');
+        const targetId = params.get('targetId');
+        const type = params.get('type') || 'camera';
+        
+        const statusEl = document.getElementById('status');
+        const videoEl = document.getElementById('remoteVideo');
+        
+        if (!roomId || !targetId) {
+            statusEl.innerText = 'Error: Missing parameters (roomId, targetId)';
+        } else {
+            const socket = io();
+            let pc = null;
+            let pendingCandidates = [];
+
+            socket.on('connect', () => {
+                statusEl.innerText = 'Connected to server, joining room...';
+                socket.emit('join', { room: roomId, deviceName: 'OBS Viewer' });
+                
+                startWatching();
+            });
+
+            async function startWatching() {
+                statusEl.innerText = 'Connecting to stream...';
+                socket.emit('join_watch', {
+                    targetSocketId: targetId,
+                    streamType: type,
+                    deviceName: 'OBS Viewer'
+                });
+
+                pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                pc.addTransceiver('video', { direction: 'recvonly' });
+                pc.addTransceiver('audio', { direction: 'recvonly' });
+
+                pc.ontrack = (event) => {
+                    console.log('Track received:', event.track.kind);
+                    if (event.streams && event.streams[0]) {
+                        videoEl.srcObject = event.streams[0];
+                    } else {
+                        videoEl.srcObject = new MediaStream([event.track]);
+                    }
+                    statusEl.innerText = 'Streaming: ' + type;
+                    setTimeout(() => {
+                        if (videoEl.srcObject) statusEl.style.display = 'none';
+                    }, 3000);
+                };
+
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        socket.emit('signal', {
+                            to: targetId,
+                            signal: event.candidate,
+                            streamType: type
+                        });
+                    }
+                };
+
+                pc.oniceconnectionstatechange = () => {
+                    console.log('ICE state:', pc.iceConnectionState);
+                    if (pc.iceConnectionState === 'failed') {
+                        statusEl.innerText = 'Connection failed';
+                        statusEl.style.display = 'block';
+                    }
+                };
+
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+
+                socket.emit('signal', {
+                    to: targetId,
+                    signal: pc.localDescription,
+                    streamType: type
+                });
+            }
+
+            socket.on('signal', async (data) => {
+                if (data.from !== targetId || data.streamType !== type) return;
+                
+                try {
+                    if (data.signal.type === 'answer') {
+                        console.log('Received answer');
+                        await pc.setRemoteDescription(new RTCSessionDescription(data.signal));
+                        while (pendingCandidates.length > 0) {
+                            await pc.addIceCandidate(new RTCIceCandidate(pendingCandidates.shift()));
+                        }
+                    } else if (data.signal.candidate) {
+                        if (pc.remoteDescription) {
+                            await pc.addIceCandidate(new RTCIceCandidate(data.signal));
+                        } else {
+                            pendingCandidates.push(data.signal);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Signal error:', e);
+                }
+            });
+
+            socket.on('room_status', (devices) => {
+                const target = devices.find(d => d.socketId === targetId);
+                if (!target || !target.sharing || !target.sharing[type]) {
+                    statusEl.innerText = 'Stream ended';
+                    statusEl.style.display = 'block';
+                    videoEl.srcObject = null;
+                }
+            });
+
+            socket.on('disconnect', () => {
+                statusEl.innerText = 'Disconnected';
+                statusEl.style.display = 'block';
+            });
+        }
+    </script>
+</body>
+</html>

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 export default function Share() {
-  const { devices, myId } = useStatusStore();
+  const { devices, myId, serverUrl, roomId } = useStatusStore();
   const [sharing, setSharing] = useState({ screen: false, camera: false });
   const [copiedId, setCopiedId] = useState(null);
 
@@ -76,7 +76,7 @@ export default function Share() {
   };
 
   const copyOBSLink = (targetSocketId) => {
-    const url = browser.runtime.getURL(`watch.html?targetId=${targetSocketId}&type=camera&obs=true`);
+    const url = `${serverUrl}/obs?roomId=${roomId}&targetId=${targetSocketId}&type=camera`;
     navigator.clipboard.writeText(url);
     setCopiedId(targetSocketId);
     setTimeout(() => setCopiedId(null), 2000);

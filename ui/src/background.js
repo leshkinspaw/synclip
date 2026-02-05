@@ -11,6 +11,7 @@ let roomDevices = [];
 let connectionStatus = "disconnected";
 let lastError = "";
 let deviceName = "Unknown Device";
+let serverUrl = "";
 let pollInterval = 1;
 let receiveClipboard = true;
 let sendClipboard = true;
@@ -79,9 +80,9 @@ async function initSync() {
     const newPollInterval = data.pollInterval || pollInterval;
     receiveClipboard = data.receiveClipboard !== undefined ? data.receiveClipboard : true;
     sendClipboard = data.sendClipboard !== undefined ? data.sendClipboard : true;
-    const serverUrl = data.serverUrl || "localhost:3000";
+    const srvUrl = data.serverUrl || "localhost:3000";
     const protocol = data.useSsl ? "https://" : "http://";
-    const fullUrl = serverUrl.includes("://") ? serverUrl : protocol + serverUrl;
+    serverUrl = srvUrl.includes("://") ? srvUrl : protocol + srvUrl;
 
     // Setup alarm with the interval
     await setupPollAlarm(newPollInterval);
@@ -95,7 +96,7 @@ async function initSync() {
 
     connectionStatus = "connecting";
     lastError = "";
-    socket = io(fullUrl, { 
+    socket = io(serverUrl, { 
       reconnection: true,
       transports: ['websocket'],
       timeout: 10000
@@ -243,6 +244,7 @@ const handlers = {
       roomDevices,
       socketId: socket?.id,
       roomId,
+      serverUrl,
       deviceName,
       pollInterval,
       receiveClipboard,

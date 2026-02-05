@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -9,6 +10,10 @@ app.use(cors());
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', rooms: Object.keys(rooms).length });
+});
+
+app.get('/obs', (req, res) => {
+  res.sendFile(path.join(__dirname, 'obs.html'));
 });
 
 const server = http.createServer(app);
