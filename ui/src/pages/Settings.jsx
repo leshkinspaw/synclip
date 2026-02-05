@@ -29,7 +29,7 @@ import { getStorageData, setStorageData } from "@/lib/storage";
 import { useStatusStore } from "@/store/statusStore";
 import { useStatusUI } from "@/hooks/useStatusUI";
 import browser from 'webextension-polyfill';
-import { Globe, Shield, Edit2, Moon, Sun, Monitor, Clock, Info, ClipboardList } from "lucide-react";
+import { Globe, Shield, Edit2, Moon, Sun, Monitor, Clock, Info, ClipboardList, RefreshCcw } from "lucide-react";
 
 export default function Settings() {
   const [serverUrl, setServerUrl] = useState("localhost:3000");
@@ -116,7 +116,23 @@ export default function Settings() {
               )}
             </Tooltip>
           </div>
-          <CardDescription>Server used for signaling and relay.</CardDescription>
+          <div className="flex items-center justify-between">
+            <CardDescription>Server used for signaling and relay.</CardDescription>
+            {status !== "connecting" && (
+              <Button 
+                variant="link"
+                size="icon"
+                className="h-4 w-4 text-muted-foreground hover:text-foreground"
+                onClick={async () => {
+                  await browser.runtime.sendMessage({ type: "RECONNECT" });
+                  fetchStatus();
+                }}
+                title="Reconnect to Relay Server"
+              >
+                <RefreshCcw className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
