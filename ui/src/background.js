@@ -16,6 +16,7 @@ let pollInterval = 1;
 let receiveClipboard = true;
 let sendClipboard = true;
 let interfaceMode = "sidebar";
+let shareInNewWindow = false;
 let localSharing = { screen: false, camera: false };
 let activeTabs = {}; // tabId -> { shares: Set(), watches: Set() }
 
@@ -94,7 +95,7 @@ async function applyInterfaceMode(mode) {
 
 async function initSync() {
   try {
-    const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName', 'pollInterval', 'receiveClipboard', 'sendClipboard', 'interfaceMode']);
+    const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName', 'pollInterval', 'receiveClipboard', 'sendClipboard', 'interfaceMode', 'shareInNewWindow']);
     if (!data.seedPhrase) {
       console.log("No seed phrase found, skipping sync init.");
       connectionStatus = "no_seed";
@@ -106,6 +107,7 @@ async function initSync() {
     receiveClipboard = data.receiveClipboard !== undefined ? data.receiveClipboard : true;
     sendClipboard = data.sendClipboard !== undefined ? data.sendClipboard : true;
     interfaceMode = data.interfaceMode || "sidebar";
+    shareInNewWindow = data.shareInNewWindow !== undefined ? data.shareInNewWindow : false;
     const srvUrl = data.serverUrl || "localhost:3000";
 
     // Apply interface mode
@@ -282,6 +284,12 @@ const handlers = {
     }
     return { success: true };
   },
+  "UPDATE_SHARE_WINDOW_SETTING": async (message) => {
+    if (message.shareInNewWindow !== undefined) {
+      shareInNewWindow = message.shareInNewWindow;
+    }
+    return { success: true };
+  },
   "GET_STATUS": async () => {
     return {
       connectionStatus,
@@ -295,6 +303,7 @@ const handlers = {
       receiveClipboard,
       sendClipboard,
       interfaceMode,
+      shareInNewWindow,
       localSharing
     };
   },
@@ -343,7 +352,13 @@ const handlers = {
     }
     
     // Always notify any open share-stream tabs to stop locally
-    browser.runtime.sendMessage({ type: "STOP_SHARE_LOCAL", streamType: message.streamType }).catch(() => {});
+    // If sender.tab is missing, it means it was triggered from extension popup/sidebar
+    const fromExtension = !sender?.tab;
+    browser.runtime.sendMessage({ 
+      type: "STOP_SHARE_LOCAL", 
+      streamType: message.streamType,
+      fromExtension: fromExtension
+    }).catch(() => {});
 
     if (socket?.connected) {
       socket.emit('stop_share', { type: message.streamType });

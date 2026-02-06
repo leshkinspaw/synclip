@@ -10,6 +10,7 @@ import "@/index.css";
 function ShareStream() {
   const [streams, setStreams] = useState({ screen: null, camera: null });
   const [monitors, setMonitors] = useState([]);
+  const [isWindow, setIsWindow] = useState(false);
   const peersRef = useRef({}); // "socketId-streamType" -> RTCPeerConnection
   const pendingCandidatesRef = useRef({}); // "socketId-streamType" -> [candidates]
   const streamsRef = useRef({ screen: null, camera: null });
@@ -17,6 +18,7 @@ function ShareStream() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const initialType = params.get('type');
+    setIsWindow(params.get('view') === 'window');
     
     if (initialType === 'screen' || initialType === 'camera') {
       startStreaming(initialType);
@@ -27,6 +29,9 @@ function ShareStream() {
         handleSignal(message.from, message.signal, message.streamType);
       } else if (message.type === "STOP_SHARE_LOCAL") {
         stopStreaming(message.streamType, true);
+        if (message.fromExtension && !streamsRef.current.screen && !streamsRef.current.camera) {
+          window.close();
+        }
       } else if (message.type === "ROOM_STATUS_UPDATED") {
         updateMonitors(message.devices, message.socketId);
       } else if (message.type === "START_SHARE_FROM_POPUP") {
@@ -213,115 +218,142 @@ function ShareStream() {
 
   const activeCount = Object.keys(groupedMonitors).length;
 
+  const renderContent = () => (
+    <>
+      <div className="flex flex-wrap gap-4">
+        {/* Screen Preview */}
+        <div className="space-y-2 flex-1 min-w-36 max-w-xs">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <Monitor className="w-4 h-4" /> Screen
+            </h4>
+            {streams.screen && (
+              <Button variant="destructive" size="xs" className="h-7 px-2 text-[10px]" onClick={() => stopStreaming('screen')}>
+                Stop
+              </Button>
+            )}
+          </div>
+          <div className="aspect-video bg-muted rounded-lg overflow-hidden flex items-center justify-center border relative">
+            {streams.screen ? (
+              <video 
+                autoPlay 
+                muted 
+                playsInline 
+                ref={el => { if (el) el.srcObject = streams.screen; }}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <Monitor className="w-8 h-8 opacity-20" />
+                <Button variant="outline" size="sm" onClick={() => startStreaming('screen')}>Start sharing</Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Camera Preview */}
+        <div className="space-y-2 flex-1 min-w-36 max-w-xs">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <Camera className="w-4 h-4" /> Camera
+            </h4>
+            {streams.camera && (
+              <Button variant="destructive" size="xs" className="h-7 px-2 text-[10px]" onClick={() => stopStreaming('camera')}>
+                Stop
+              </Button>
+            )}
+          </div>
+          <div className="aspect-video bg-muted rounded-lg overflow-hidden flex items-center justify-center border relative">
+            {streams.camera ? (
+              <video 
+                autoPlay 
+                muted 
+                playsInline 
+                ref={el => { if (el) el.srcObject = streams.camera; }}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <Camera className="w-8 h-8 opacity-20" />
+                <Button variant="outline" size="sm" onClick={() => startStreaming('camera')}>Start camera</Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3 pt-4 border-t">
+        <h4 className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+          <Eye className="w-4 h-4" />
+          Watchers ({activeCount})
+        </h4>
+        <div className="flex flex-wrap gap-3 min-h-[50px] p-3 bg-secondary/20 rounded-xl border border-border/50">
+          {activeCount === 0 ? (
+            <p className="text-xs text-muted-foreground italic self-center w-full text-center">No other devices are watching yet</p>
+          ) : (
+            Object.entries(groupedMonitors).map(([socketId, data]) => (
+              <div key={socketId} className="flex items-center gap-2 bg-background border rounded-full pl-3 pr-2 py-1 shadow-sm">
+                <span className="text-xs font-medium">{data.deviceName}</span>
+                <div className="flex gap-1 border-l pl-2 ml-1">
+                  {data.types.includes('screen') && (
+                    <Monitor className="w-3 h-3 text-primary" />
+                  )}
+                  {data.types.includes('camera') && (
+                    <Camera className="w-3 h-3 text-primary" />
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      
+      <p className="text-[10px] text-center text-muted-foreground italic">
+        Keep this tab open to continue sharing. You can share both screen and camera at the same time.
+      </p>
+    </>
+  );
+
   return (
     <ThemeProvider defaultTheme="dark" storageKey="synclip-theme">
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-2xl font-bold flex items-center gap-2">
-              Device Broadcast
-            </CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => window.close()}>
-               <X className="w-5 h-5" />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Screen Preview */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium flex items-center gap-2">
-                    <Monitor className="w-4 h-4" /> Screen
-                  </h4>
-                  {streams.screen && (
-                    <Button variant="destructive" size="xs" className="h-7 px-2 text-[10px]" onClick={() => stopStreaming('screen')}>
-                      Stop
-                    </Button>
-                  )}
-                </div>
-                <div className="aspect-video bg-muted rounded-lg overflow-hidden flex items-center justify-center border relative">
-                  {streams.screen ? (
-                    <video 
-                      autoPlay 
-                      muted 
-                      playsInline 
-                      ref={el => { if (el) el.srcObject = streams.screen; }}
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2">
-                      <Monitor className="w-8 h-8 opacity-20" />
-                      <Button variant="outline" size="sm" onClick={() => startStreaming('screen')}>Start sharing</Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Camera Preview */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium flex items-center gap-2">
-                    <Camera className="w-4 h-4" /> Camera
-                  </h4>
-                  {streams.camera && (
-                    <Button variant="destructive" size="xs" className="h-7 px-2 text-[10px]" onClick={() => stopStreaming('camera')}>
-                      Stop
-                    </Button>
-                  )}
-                </div>
-                <div className="aspect-video bg-muted rounded-lg overflow-hidden flex items-center justify-center border relative">
-                  {streams.camera ? (
-                    <video 
-                      autoPlay 
-                      muted 
-                      playsInline 
-                      ref={el => { if (el) el.srcObject = streams.camera; }}
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2">
-                      <Camera className="w-8 h-8 opacity-20" />
-                      <Button variant="outline" size="sm" onClick={() => startStreaming('camera')}>Start camera</Button>
-                    </div>
-                  )}
-                </div>
-              </div>
+      <div className={cn(
+        "bg-background text-foreground flex items-center justify-center",
+        isWindow ? "min-h-0 p-2" : "min-h-screen p-4"
+      )}>
+        {isWindow ? (
+          <div className="w-full space-y-4">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                Device Broadcast
+              </h1>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => window.close()}>
+                <X className="w-4 h-4" />
+              </Button>
             </div>
-
-            <div className="space-y-3 pt-4 border-t">
-              <h4 className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
-                <Eye className="w-4 h-4" />
-                Watchers ({activeCount})
-              </h4>
-              <div className="flex flex-wrap gap-3 min-h-[50px] p-3 bg-secondary/20 rounded-xl border border-border/50">
-                {activeCount === 0 ? (
-                  <p className="text-xs text-muted-foreground italic self-center w-full text-center">No other devices are watching yet</p>
-                ) : (
-                  Object.entries(groupedMonitors).map(([socketId, data]) => (
-                    <div key={socketId} className="flex items-center gap-2 bg-background border rounded-full pl-3 pr-2 py-1 shadow-sm">
-                      <span className="text-xs font-medium">{data.deviceName}</span>
-                      <div className="flex gap-1 border-l pl-2 ml-1">
-                        {data.types.includes('screen') && (
-                          <Monitor className="w-3 h-3 text-primary" />
-                        )}
-                        {data.types.includes('camera') && (
-                          <Camera className="w-3 h-3 text-primary" />
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-            
-            <p className="text-[10px] text-center text-muted-foreground italic">
-              Keep this tab open to continue sharing. You can share both screen and camera at the same time.
-            </p>
-          </CardContent>
-        </Card>
+            {renderContent()}
+          </div>
+        ) : (
+          <Card className="w-full max-w-2xl">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                Device Broadcast
+              </CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => window.close()}>
+                <X className="w-5 h-5" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {renderContent()}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </ThemeProvider>
   );
+}
+
+function cn(...inputs) {
+  return inputs.filter(Boolean).join(' ');
 }
 
 const root = createRoot(document.getElementById('root'));

@@ -34,7 +34,7 @@ import { Globe, Shield, Edit2, Moon, Sun, Monitor, Clock, Info, ClipboardList, R
 export default function Settings() {
   const [serverUrl, setServerUrl] = useState("localhost:3000");
   const [useSsl, setUseSsl] = useState(false);
-  const { status, lastError, pollInterval, receiveClipboard, sendClipboard, interfaceMode, fetchStatus, updateStatus } = useStatusStore();
+  const { status, lastError, pollInterval, receiveClipboard, sendClipboard, interfaceMode, shareInNewWindow, fetchStatus, updateStatus } = useStatusStore();
   const { theme, setTheme } = useTheme();
   
   const { getStatusColor, getStatusIcon, getStatusLabel } = useStatusUI(status);
@@ -51,13 +51,14 @@ export default function Settings() {
   }, []);
 
   const loadSettings = async () => {
-    const data = await getStorageData(['serverUrl', 'useSsl', 'pollInterval', 'receiveClipboard', 'sendClipboard']);
+    const data = await getStorageData(['serverUrl', 'useSsl', 'pollInterval', 'receiveClipboard', 'sendClipboard', 'shareInNewWindow']);
     if (data.serverUrl) setServerUrl(data.serverUrl);
     if (data.useSsl !== undefined) setUseSsl(data.useSsl);
     if (data.pollInterval) setEditPollInterval(data.pollInterval);
     updateStatus({
       receiveClipboard: data.receiveClipboard !== undefined ? data.receiveClipboard : true,
-      sendClipboard: data.sendClipboard !== undefined ? data.sendClipboard : true
+      sendClipboard: data.sendClipboard !== undefined ? data.sendClipboard : true,
+      shareInNewWindow: data.shareInNewWindow !== undefined ? data.shareInNewWindow : false
     });
     fetchStatus();
   };
@@ -72,6 +73,12 @@ export default function Settings() {
     await setStorageData({ sendClipboard: val });
     updateStatus({ sendClipboard: val });
     await browser.runtime.sendMessage({ type: "UPDATE_CLIPBOARD_SETTINGS", sendClipboard: val });
+  };
+  
+  const handleToggleShareWindow = async (val) => {
+    await setStorageData({ shareInNewWindow: val });
+    updateStatus({ shareInNewWindow: val });
+    await browser.runtime.sendMessage({ type: "UPDATE_SHARE_WINDOW_SETTING", shareInNewWindow: val });
   };
 
   const handleToggleInterface = (val) => {
@@ -378,6 +385,18 @@ export default function Settings() {
               />
             </div>
           )}
+
+          <div className="flex items-center justify-between pt-2">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">Share in new window</span>
+              <span className="text-[10px] text-muted-foreground">Open sharing/watching in a separate window</span>
+            </div>
+            <Switch 
+              size="xs"
+              checked={shareInNewWindow} 
+              onCheckedChange={handleToggleShareWindow} 
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

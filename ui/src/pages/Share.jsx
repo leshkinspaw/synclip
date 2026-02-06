@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 export default function Share() {
-  const { devices, myId, serverUrl, roomId, localSharing } = useStatusStore();
+  const { devices, myId, serverUrl, roomId, localSharing, shareInNewWindow } = useStatusStore();
   const [copiedId, setCopiedId] = useState(null);
 
   const handleStartShare = async (type) => {
@@ -31,8 +31,13 @@ export default function Share() {
         }
         browser.runtime.sendMessage({ type: "START_SHARE_FROM_POPUP", streamType: type });
       } else {
-        const url = browser.runtime.getURL(`share-stream.html?type=${type}`);
-        await browser.tabs.create({ url });
+        let url = browser.runtime.getURL(`share-stream.html?type=${type}`);
+        if (shareInNewWindow) {
+          url += '&view=window';
+          await browser.windows.create({ url, type: 'popup', width: 600, height: 500 });
+        } else {
+          await browser.tabs.create({ url });
+        }
       }
     } catch (err) {
       console.error(`Failed to start ${type} share:`, err);
@@ -55,13 +60,22 @@ export default function Share() {
           await browser.windows.update(existingTab.windowId, { focused: true });
         }
       } else {
-        await browser.tabs.create({ url });
+        const url = browser.runtime.getURL(`watch.html?targetId=${targetSocketId}&type=${streamType}`);
+        if (shareInNewWindow) {
+          await browser.windows.create({ url, type: 'popup', width: 800, height: 600 });
+        } else {
+          await browser.tabs.create({ url });
+        }
       }
     } catch (err) {
       console.error(`Failed to watch ${streamType}:`, err);
       // Fallback
       const url = browser.runtime.getURL(`watch.html?targetId=${targetSocketId}&type=${streamType}`);
-      browser.tabs.create({ url });
+      if (shareInNewWindow) {
+        browser.windows.create({ url, type: 'popup', width: 800, height: 600 });
+      } else {
+        browser.tabs.create({ url });
+      }
     }
   };
 
