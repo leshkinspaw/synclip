@@ -338,8 +338,8 @@ export default function Settings() {
           </CardTitle>
           <CardDescription>Customize the look and feel of the extension.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+        <CardContent className="space-y-2 divide-y">
+          <div className="flex items-center justify-between pb-2">
             <span className="text-sm font-medium">Theme</span>
             <Select value={theme} onValueChange={setTheme}>
               <SelectTrigger size="xs" className="w-[120px]">
@@ -366,7 +366,7 @@ export default function Settings() {
           </div>
 
           {hasSidePanelSupport && (
-            <div className="flex items-center justify-between pt-2 border-t">
+            <div className="flex items-center justify-between pt-2">
               <div className="flex flex-col">
                 <span className="text-sm font-medium">Sidebar Mode</span>
                 <span className="text-[10px] text-muted-foreground">Show extension in the side panel</span>
