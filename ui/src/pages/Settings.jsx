@@ -224,6 +224,7 @@ export default function Settings() {
                       <label className="text-sm font-medium">Use SSL</label>
                     </div>
                     <Switch 
+                      size="xs"
                       checked={editUseSsl} 
                       onCheckedChange={setEditUseSsl} 
                     />
@@ -273,7 +274,7 @@ export default function Settings() {
               <span className="text-sm font-medium">Receive Updates</span>
               <span className="text-[10px] text-muted-foreground">Receive clipboard from other devices</span>
             </div>
-            <Switch checked={receiveClipboard} onCheckedChange={handleToggleReceive} />
+            <Switch size="xs" checked={receiveClipboard} onCheckedChange={handleToggleReceive} />
           </div>
 
           <div className="flex items-center justify-between pt-2">
@@ -281,7 +282,7 @@ export default function Settings() {
               <span className="text-sm font-medium">Send Updates</span>
               <span className="text-[10px] text-muted-foreground">Share this device's clipboard</span>
             </div>
-            <Switch checked={sendClipboard} onCheckedChange={handleToggleSend} />
+            <Switch size="xs" checked={sendClipboard} onCheckedChange={handleToggleSend} />
           </div>
 
           <div className="flex items-center justify-between pt-2">
@@ -341,7 +342,7 @@ export default function Settings() {
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Theme</span>
             <Select value={theme} onValueChange={setTheme}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger size="xs" className="w-[120px]">
                 <SelectValue placeholder="Select theme" />
               </SelectTrigger>
               <SelectContent>
@@ -371,6 +372,7 @@ export default function Settings() {
                 <span className="text-[10px] text-muted-foreground">Show extension in the side panel</span>
               </div>
               <Switch 
+                size="xs"
                 checked={interfaceMode === 'sidebar'} 
                 onCheckedChange={(val) => handleToggleInterface(val ? 'sidebar' : 'popup')} 
               />
