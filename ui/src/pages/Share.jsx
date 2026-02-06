@@ -17,18 +17,8 @@ import {
 } from "lucide-react";
 
 export default function Share() {
-  const { devices, myId, serverUrl, roomId } = useStatusStore();
-  const [sharing, setSharing] = useState({ screen: false, camera: false });
+  const { devices, myId, serverUrl, roomId, localSharing } = useStatusStore();
   const [copiedId, setCopiedId] = useState(null);
-
-  useEffect(() => {
-    const myDevice = devices.find(d => d.socketId === myId);
-    if (myDevice?.sharing) {
-      setSharing(myDevice.sharing);
-    } else {
-      setSharing({ screen: false, camera: false });
-    }
-  }, [devices, myId]);
 
   const handleStartShare = async (type) => {
     try {
@@ -106,7 +96,7 @@ export default function Share() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
-            {!sharing.screen ? (
+            {!localSharing?.screen ? (
               <Button 
                 onClick={() => handleStartShare('screen')}
                 className="flex-1 flex items-center gap-2"
@@ -126,7 +116,7 @@ export default function Share() {
               </Button>
             )}
 
-            {!sharing.camera ? (
+            {!localSharing?.camera ? (
               <Button 
                 onClick={() => handleStartShare('camera')}
                 className="flex-1 flex items-center gap-2"

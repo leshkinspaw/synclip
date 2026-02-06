@@ -27,8 +27,11 @@ function App() {
       if (message.type === "ROOM_STATUS_UPDATED") {
         updateStatus({ 
           devices: message.devices,
-          myId: message.socketId || undefined
+          myId: message.socketId || undefined,
+          localSharing: message.localSharing
         });
+      } else if (message.type === "LOCAL_SHARING_UPDATED") {
+        updateStatus({ localSharing: message.localSharing });
       } else if (message.type === "EXCLUDED") {
         window.location.reload();
       }

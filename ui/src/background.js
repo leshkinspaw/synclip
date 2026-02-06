@@ -147,7 +147,8 @@ async function initSync() {
       browser.runtime.sendMessage({ 
         type: "ROOM_STATUS_UPDATED", 
         devices,
-        socketId: socket?.id 
+        socketId: socket?.id,
+        localSharing
       }).catch(() => {
         // Ignore errors if no one is listening (popup closed)
       });
@@ -293,7 +294,8 @@ const handlers = {
       pollInterval,
       receiveClipboard,
       sendClipboard,
-      interfaceMode
+      interfaceMode,
+      localSharing
     };
   },
   "EXCLUDE_DEVICE": async (message) => {
@@ -317,6 +319,7 @@ const handlers = {
   },
   "START_SHARE": async (message, sender) => {
     localSharing[message.streamType] = true;
+    browser.runtime.sendMessage({ type: "LOCAL_SHARING_UPDATED", localSharing }).catch(() => {});
     if (sender?.tab?.id) {
       const tabId = sender.tab.id;
       if (!activeTabs[tabId]) activeTabs[tabId] = { shares: new Set(), watches: new Set() };
@@ -328,6 +331,7 @@ const handlers = {
   },
   "STOP_SHARE": async (message, sender) => {
     localSharing[message.streamType] = false;
+    browser.runtime.sendMessage({ type: "LOCAL_SHARING_UPDATED", localSharing }).catch(() => {});
     if (sender?.tab?.id) {
       const tabId = sender.tab.id;
       if (activeTabs[tabId]) {
@@ -415,6 +419,7 @@ browser.tabs.onRemoved.addListener((tabId) => {
     shares.forEach(type => {
       console.log(`Auto-stopping share: ${type}`);
       localSharing[type] = false;
+      browser.runtime.sendMessage({ type: "LOCAL_SHARING_UPDATED", localSharing }).catch(() => {});
       if (socket?.connected) {
         socket.emit('stop_share', { type });
       }

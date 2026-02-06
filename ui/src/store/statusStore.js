@@ -13,6 +13,7 @@ export const useStatusStore = create((set, get) => ({
   receiveClipboard: true,
   sendClipboard: true,
   interfaceMode: 'sidebar',
+  localSharing: { screen: false, camera: false },
 
   updateStatus: (data) => set((state) => ({ ...state, ...data })),
 
@@ -31,7 +32,8 @@ export const useStatusStore = create((set, get) => ({
           pollInterval: response.pollInterval || get().pollInterval,
           receiveClipboard: response.receiveClipboard !== undefined ? response.receiveClipboard : get().receiveClipboard,
           sendClipboard: response.sendClipboard !== undefined ? response.sendClipboard : get().sendClipboard,
-          interfaceMode: response.interfaceMode || get().interfaceMode
+          interfaceMode: response.interfaceMode || get().interfaceMode,
+          localSharing: response.localSharing || get().localSharing
         });
       }
     } catch (error) {
