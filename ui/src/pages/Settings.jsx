@@ -449,8 +449,8 @@ export default function Settings() {
 
           <div className="flex items-center justify-between pt-2">
             <div className="flex flex-col">
-              <span className="text-sm font-medium">Share in new window</span>
-              <span className="text-[10px] text-muted-foreground">Open sharing in a separate window</span>
+              <span className="text-sm font-medium">Share in window</span>
+              <span className="text-[10px] text-muted-foreground">Off: open in tab. On: open in window.</span>
             </div>
             {isShareTargetInUse ? (
               <Tooltip>
@@ -480,8 +480,8 @@ export default function Settings() {
 
           <div className="flex items-center justify-between pt-2">
             <div className="flex flex-col">
-              <span className="text-sm font-medium">Watch in new window</span>
-              <span className="text-[10px] text-muted-foreground">Open watching in a separate window</span>
+              <span className="text-sm font-medium">Watch in window</span>
+              <span className="text-[10px] text-muted-foreground">Off: open in tab. On: open in window.</span>
             </div>
             {isWatchTargetInUse ? (
               <Tooltip>

@@ -242,8 +242,8 @@ export default function Devices() {
                         title="Check Connection"
                     >
                       {pings[device.socketId] === 'pending' ? <RefreshCcw className="w-4 h-4 animate-spin" /> :
-                       pings[device.socketId] === 'success' ? <CheckCircle2 className="w-4 h-4 text-green-500" /> :
-                       pings[device.socketId] === 'timeout' ? <XCircle className="w-4 h-4 text-red-500" /> :
+                       pings[device.socketId] === 'success' ? <CheckCircle2 className="w-4 h-4 text-success" /> :
+                       pings[device.socketId] === 'timeout' ? <XCircle className="w-4 h-4 text-error" /> :
                        <Send className="w-4 h-4" />}
                     </Button>
                     <Button 
@@ -329,7 +329,7 @@ export default function Devices() {
                   title="copy seed phrase"
                   onClick={handleCopySeed}
               >
-                {isCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                {isCopied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
               </Button>
             </div>
           </div>
