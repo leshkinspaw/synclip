@@ -6,9 +6,9 @@ export const useStatusUI = (status) => {
     switch (status) {
       case "connected": return "text-success";
       case "connecting": return "text-warning";
-      case "error": return "text-error";
+      case "error": return "text-destructive";
       case "no_seed": return "text-info";
-      default: return "text-neutral";
+      default: return "text-muted-foreground";
     }
   };
 

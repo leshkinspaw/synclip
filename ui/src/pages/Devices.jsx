@@ -243,7 +243,7 @@ export default function Devices() {
                     >
                       {pings[device.socketId] === 'pending' ? <RefreshCcw className="w-4 h-4 animate-spin" /> :
                        pings[device.socketId] === 'success' ? <CheckCircle2 className="w-4 h-4 text-success" /> :
-                       pings[device.socketId] === 'timeout' ? <XCircle className="w-4 h-4 text-error" /> :
+                       pings[device.socketId] === 'timeout' ? <XCircle className="w-4 h-4 text-destructive" /> :
                        <Send className="w-4 h-4" />}
                     </Button>
                     <Button 
