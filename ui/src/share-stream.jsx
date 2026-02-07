@@ -14,6 +14,7 @@ function ShareStream() {
   const peersRef = useRef({}); // "socketId-streamType" -> RTCPeerConnection
   const pendingCandidatesRef = useRef({}); // "socketId-streamType" -> [candidates]
   const streamsRef = useRef({ screen: null, camera: null });
+  const startRequestIdRef = useRef({ screen: 0, camera: 0 });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -75,6 +76,7 @@ function ShareStream() {
 
   const startStreaming = async (streamType) => {
     if (streamsRef.current[streamType]) return;
+    const requestId = ++startRequestIdRef.current[streamType];
 
     try {
       let mediaStream;
@@ -88,6 +90,11 @@ function ShareStream() {
           video: true,
           audio: true
         });
+      }
+
+      if (startRequestIdRef.current[streamType] !== requestId) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        return;
       }
 
       setStreams(prev => ({ ...prev, [streamType]: mediaStream }));
@@ -105,6 +112,7 @@ function ShareStream() {
 
   const stopStreaming = (streamType, skipNotify = false) => {
     let changed = false;
+    startRequestIdRef.current[streamType] += 1;
 
     if (streamsRef.current[streamType]) {
       streamsRef.current[streamType].getTracks().forEach(track => track.stop());
@@ -309,7 +317,9 @@ function ShareStream() {
       </div>
       
       <p className="text-[10px] text-center text-muted-foreground italic">
-        Keep this tab open to continue sharing. You can share both screen and camera at the same time.
+        {isWindow
+          ? "Keep this window open to continue sharing. You can share both screen and camera at the same time."
+          : "Keep this tab open to continue sharing. You can share both screen and camera at the same time."}
       </p>
     </>
   );

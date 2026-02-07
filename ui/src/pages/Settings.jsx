@@ -34,7 +34,7 @@ import { Globe, Shield, Edit2, Moon, Sun, Monitor, Clock, Info, ClipboardList, R
 export default function Settings() {
   const [serverUrl, setServerUrl] = useState("localhost:3000");
   const [useSsl, setUseSsl] = useState(false);
-  const { status, lastError, pollInterval, receiveClipboard, sendClipboard, interfaceMode, shareInNewWindow, fetchStatus, updateStatus } = useStatusStore();
+  const { status, lastError, pollInterval, receiveClipboard, sendClipboard, interfaceMode, shareInNewWindow, watchInNewWindow, fetchStatus, updateStatus } = useStatusStore();
   const { theme, setTheme } = useTheme();
   
   const { getStatusColor, getStatusIcon, getStatusLabel } = useStatusUI(status);
@@ -45,20 +45,75 @@ export default function Settings() {
 
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
   const [editPollInterval, setEditPollInterval] = useState(1);
+  const [isShareTargetInUse, setIsShareTargetInUse] = useState(false);
+  const [isWatchTargetInUse, setIsWatchTargetInUse] = useState(false);
 
   useEffect(() => {
     loadSettings();
   }, []);
 
+  useEffect(() => {
+    const checkTargetUsage = async () => {
+      try {
+        const [shareTabs, watchTabs] = await Promise.all([
+          browser.tabs.query({ url: browser.runtime.getURL('share-stream.html*') }),
+          browser.tabs.query({ url: browser.runtime.getURL('watch.html*') })
+        ]);
+        setIsShareTargetInUse(shareTabs.length > 0);
+        setIsWatchTargetInUse(watchTabs.length > 0);
+      } catch (err) {
+        console.error("Failed to check share/watch tabs:", err);
+      }
+    };
+
+    const handleTabEvent = () => {
+      checkTargetUsage();
+    };
+
+    checkTargetUsage();
+
+    if (browser?.tabs?.onCreated) {
+      browser.tabs.onCreated.addListener(handleTabEvent);
+    }
+    if (browser?.tabs?.onRemoved) {
+      browser.tabs.onRemoved.addListener(handleTabEvent);
+    }
+    const handleTabUpdated = (tabId, changeInfo) => {
+      if (changeInfo?.status === 'complete' || changeInfo?.url) {
+        handleTabEvent();
+      }
+      void tabId;
+    };
+
+    if (browser?.tabs?.onUpdated) {
+      browser.tabs.onUpdated.addListener(handleTabUpdated);
+    }
+
+    return () => {
+      if (browser?.tabs?.onCreated) {
+        browser.tabs.onCreated.removeListener(handleTabEvent);
+      }
+      if (browser?.tabs?.onRemoved) {
+        browser.tabs.onRemoved.removeListener(handleTabEvent);
+      }
+      if (browser?.tabs?.onUpdated) {
+        browser.tabs.onUpdated.removeListener(handleTabUpdated);
+      }
+    };
+  }, []);
+
   const loadSettings = async () => {
-    const data = await getStorageData(['serverUrl', 'useSsl', 'pollInterval', 'receiveClipboard', 'sendClipboard', 'shareInNewWindow']);
+    const data = await getStorageData(['serverUrl', 'useSsl', 'pollInterval', 'receiveClipboard', 'sendClipboard', 'shareInNewWindow', 'watchInNewWindow']);
+    const storedShareInNewWindow = data.shareInNewWindow !== undefined ? data.shareInNewWindow : false;
+    const storedWatchInNewWindow = data.watchInNewWindow !== undefined ? data.watchInNewWindow : storedShareInNewWindow;
     if (data.serverUrl) setServerUrl(data.serverUrl);
     if (data.useSsl !== undefined) setUseSsl(data.useSsl);
     if (data.pollInterval) setEditPollInterval(data.pollInterval);
     updateStatus({
       receiveClipboard: data.receiveClipboard !== undefined ? data.receiveClipboard : true,
       sendClipboard: data.sendClipboard !== undefined ? data.sendClipboard : true,
-      shareInNewWindow: data.shareInNewWindow !== undefined ? data.shareInNewWindow : false
+      shareInNewWindow: storedShareInNewWindow,
+      watchInNewWindow: storedWatchInNewWindow
     });
     fetchStatus();
   };
@@ -79,6 +134,12 @@ export default function Settings() {
     await setStorageData({ shareInNewWindow: val });
     updateStatus({ shareInNewWindow: val });
     await browser.runtime.sendMessage({ type: "UPDATE_SHARE_WINDOW_SETTING", shareInNewWindow: val });
+  };
+
+  const handleToggleWatchWindow = async (val) => {
+    await setStorageData({ watchInNewWindow: val });
+    updateStatus({ watchInNewWindow: val });
+    await browser.runtime.sendMessage({ type: "UPDATE_WATCH_WINDOW_SETTING", watchInNewWindow: val });
   };
 
   const handleToggleInterface = (val) => {
@@ -389,13 +450,63 @@ export default function Settings() {
           <div className="flex items-center justify-between pt-2">
             <div className="flex flex-col">
               <span className="text-sm font-medium">Share in new window</span>
-              <span className="text-[10px] text-muted-foreground">Open sharing/watching in a separate window</span>
+              <span className="text-[10px] text-muted-foreground">Open sharing in a separate window</span>
             </div>
-            <Switch 
-              size="xs"
-              checked={shareInNewWindow} 
-              onCheckedChange={handleToggleShareWindow} 
-            />
+            {isShareTargetInUse ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Switch 
+                      size="xs"
+                      checked={shareInNewWindow} 
+                      onCheckedChange={handleToggleShareWindow} 
+                      disabled={isShareTargetInUse}
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">in use</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Switch 
+                size="xs"
+                checked={shareInNewWindow} 
+                onCheckedChange={handleToggleShareWindow} 
+                disabled={isShareTargetInUse}
+              />
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">Watch in new window</span>
+              <span className="text-[10px] text-muted-foreground">Open watching in a separate window</span>
+            </div>
+            {isWatchTargetInUse ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Switch 
+                      size="xs"
+                      checked={watchInNewWindow} 
+                      onCheckedChange={handleToggleWatchWindow} 
+                      disabled={isWatchTargetInUse}
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">in use</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Switch 
+                size="xs"
+                checked={watchInNewWindow} 
+                onCheckedChange={handleToggleWatchWindow} 
+                disabled={isWatchTargetInUse}
+              />
+            )}
           </div>
         </CardContent>
       </Card>

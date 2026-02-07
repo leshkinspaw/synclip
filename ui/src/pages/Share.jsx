@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 export default function Share() {
-  const { devices, myId, serverUrl, roomId, localSharing, shareInNewWindow } = useStatusStore();
+  const { devices, myId, serverUrl, roomId, localSharing, shareInNewWindow, watchInNewWindow } = useStatusStore();
   const [copiedId, setCopiedId] = useState(null);
 
   const handleStartShare = async (type) => {
@@ -61,7 +61,7 @@ export default function Share() {
         }
       } else {
         const url = browser.runtime.getURL(`watch.html?targetId=${targetSocketId}&type=${streamType}`);
-        if (shareInNewWindow) {
+        if (watchInNewWindow) {
           await browser.windows.create({ url, type: 'popup', width: 800, height: 600 });
         } else {
           await browser.tabs.create({ url });
@@ -71,7 +71,7 @@ export default function Share() {
       console.error(`Failed to watch ${streamType}:`, err);
       // Fallback
       const url = browser.runtime.getURL(`watch.html?targetId=${targetSocketId}&type=${streamType}`);
-      if (shareInNewWindow) {
+      if (watchInNewWindow) {
         browser.windows.create({ url, type: 'popup', width: 800, height: 600 });
       } else {
         browser.tabs.create({ url });

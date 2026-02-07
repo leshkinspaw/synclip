@@ -17,6 +17,7 @@ let receiveClipboard = true;
 let sendClipboard = true;
 let interfaceMode = "sidebar";
 let shareInNewWindow = false;
+let watchInNewWindow = false;
 let localSharing = { screen: false, camera: false };
 let activeTabs = {}; // tabId -> { shares: Set(), watches: Set() }
 
@@ -95,7 +96,7 @@ async function applyInterfaceMode(mode) {
 
 async function initSync() {
   try {
-    const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName', 'pollInterval', 'receiveClipboard', 'sendClipboard', 'interfaceMode', 'shareInNewWindow']);
+    const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName', 'pollInterval', 'receiveClipboard', 'sendClipboard', 'interfaceMode', 'shareInNewWindow', 'watchInNewWindow']);
     if (!data.seedPhrase) {
       console.log("No seed phrase found, skipping sync init.");
       connectionStatus = "no_seed";
@@ -107,7 +108,10 @@ async function initSync() {
     receiveClipboard = data.receiveClipboard !== undefined ? data.receiveClipboard : true;
     sendClipboard = data.sendClipboard !== undefined ? data.sendClipboard : true;
     interfaceMode = data.interfaceMode || "sidebar";
-    shareInNewWindow = data.shareInNewWindow !== undefined ? data.shareInNewWindow : false;
+    const storedShareInNewWindow = data.shareInNewWindow !== undefined ? data.shareInNewWindow : false;
+    const storedWatchInNewWindow = data.watchInNewWindow !== undefined ? data.watchInNewWindow : storedShareInNewWindow;
+    shareInNewWindow = storedShareInNewWindow;
+    watchInNewWindow = storedWatchInNewWindow;
     const srvUrl = data.serverUrl || "localhost:3000";
 
     // Apply interface mode
@@ -290,6 +294,12 @@ const handlers = {
     }
     return { success: true };
   },
+  "UPDATE_WATCH_WINDOW_SETTING": async (message) => {
+    if (message.watchInNewWindow !== undefined) {
+      watchInNewWindow = message.watchInNewWindow;
+    }
+    return { success: true };
+  },
   "GET_STATUS": async () => {
     return {
       connectionStatus,
@@ -304,6 +314,7 @@ const handlers = {
       sendClipboard,
       interfaceMode,
       shareInNewWindow,
+      watchInNewWindow,
       localSharing
     };
   },
