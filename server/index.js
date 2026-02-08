@@ -35,6 +35,7 @@ async function broadcastRoomStatus(room) {
   const sockets = await io.in(room).fetchSockets();
   const devices = sockets.map(s => ({
     socketId: s.id,
+    deviceId: s.data.deviceId || null,
     deviceName: s.data.deviceName || 'Unknown Device',
     sharing: s.data.sharing || { screen: false, camera: false },
     monitors: []
@@ -73,11 +74,12 @@ io.on('connection', (socket) => {
       log('Join attempt without room info');
       return;
     }
-    const { room, deviceName } = data;
+    const { room, deviceName, deviceId } = data;
     await socket.join(room);
     currentRoom = room;
     
     socket.data.deviceName = deviceName || 'Unknown Device';
+    socket.data.deviceId = deviceId || null;
     socket.data.sharing = { screen: false, camera: false };
     socket.data.watching = [];
     

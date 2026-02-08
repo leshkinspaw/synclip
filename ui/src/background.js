@@ -1,5 +1,5 @@
 import { io } from "socket.io-client";
-import { getStorageData, removeStorageData } from "./lib/storage";
+import { getStorageData, removeStorageData, setStorageData } from "./lib/storage";
 import { deriveKey, encryptData, decryptData, getRoomId } from "./lib/crypto";
 import browser from 'webextension-polyfill';
 
@@ -11,6 +11,7 @@ let roomDevices = [];
 let connectionStatus = "disconnected";
 let lastError = "";
 let deviceName = "Unknown Device";
+let deviceId = "";
 let serverUrl = "";
 let pollInterval = 1;
 let receiveClipboard = true;
@@ -94,9 +95,16 @@ async function applyInterfaceMode(mode) {
   }
 }
 
+function generateDeviceId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `device-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 async function initSync() {
   try {
-    const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName', 'pollInterval', 'receiveClipboard', 'sendClipboard', 'interfaceMode', 'shareInNewWindow', 'watchInNewWindow']);
+    const data = await getStorageData(['seedPhrase', 'serverUrl', 'useSsl', 'deviceName', 'deviceId', 'pollInterval', 'receiveClipboard', 'sendClipboard', 'interfaceMode', 'shareInNewWindow', 'watchInNewWindow']);
     if (!data.seedPhrase) {
       console.log("No seed phrase found, skipping sync init.");
       connectionStatus = "no_seed";
@@ -104,6 +112,10 @@ async function initSync() {
     }
 
     deviceName = data.deviceName || `Device ${Math.floor(Math.random() * 1000)}`;
+    deviceId = data.deviceId || generateDeviceId();
+    if (!data.deviceId) {
+      await setStorageData({ deviceId });
+    }
     const newPollInterval = data.pollInterval || pollInterval;
     receiveClipboard = data.receiveClipboard !== undefined ? data.receiveClipboard : true;
     sendClipboard = data.sendClipboard !== undefined ? data.sendClipboard : true;
@@ -141,7 +153,7 @@ async function initSync() {
     socket.on('connect', () => {
       console.log("Connected to sync server");
       connectionStatus = "connected";
-      socket.emit('join', { room: roomId, deviceName });
+      socket.emit('join', { room: roomId, deviceName, deviceId });
       
       // Restore sharing state on reconnect
       if (localSharing.screen) socket.emit('start_share', { type: 'screen' });
@@ -309,6 +321,7 @@ const handlers = {
       roomId,
       serverUrl,
       deviceName,
+      deviceId,
       pollInterval,
       receiveClipboard,
       sendClipboard,

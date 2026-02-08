@@ -79,10 +79,11 @@ export default function Share() {
     }
   };
 
-  const copyOBSLink = (targetSocketId) => {
-    const url = `${serverUrl}/obs?roomId=${roomId}&targetId=${targetSocketId}&type=camera`;
+  const copyOBSLink = (targetDeviceId, targetSocketId) => {
+    const targetParam = targetDeviceId ? `targetDeviceId=${targetDeviceId}` : `targetId=${targetSocketId}`;
+    const url = `${serverUrl}/obs?roomId=${roomId}&${targetParam}&type=camera`;
     navigator.clipboard.writeText(url);
-    setCopiedId(targetSocketId);
+    setCopiedId(targetDeviceId || targetSocketId);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -228,8 +229,8 @@ export default function Share() {
                           <span>Camera + Mic</span>
                         </div>
                         <div className="flex gap-2.5">
-                          <Button variant="outline" size="xs" className="h-7 px-2 text-[10px]" onClick={() => copyOBSLink(device.socketId)}>
-                            {copiedId === device.socketId ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                          <Button variant="outline" size="xs" className="h-7 px-2 text-[10px]" onClick={() => copyOBSLink(device.deviceId, device.socketId)}>
+                            {copiedId === (device.deviceId || device.socketId) ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                             <span className="ml-1">OBS</span>
                           </Button>
                           <Button size="xs" className="h-7 px-3 text-[10px]" onClick={() => handleWatch(device.socketId, 'camera')}>

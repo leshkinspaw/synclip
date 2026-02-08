@@ -16,28 +16,32 @@
         const params = new URLSearchParams(window.location.search);
         const roomId = params.get('roomId');
         const targetId = params.get('targetId');
+        const targetDeviceId = params.get('targetDeviceId');
         const type = params.get('type') || 'camera';
         
         const statusEl = document.getElementById('status');
         const videoEl = document.getElementById('remoteVideo');
         
-        if (!roomId || !targetId) {
-            statusEl.innerText = 'Error: Missing parameters (roomId, targetId)';
+        if (!roomId || (!targetId && !targetDeviceId)) {
+            statusEl.innerText = 'Error: Missing parameters (roomId, targetId/targetDeviceId)';
         } else {
             const socket = io();
             let pc = null;
             let pendingCandidates = [];
             let isWatching = false;
+            let currentTargetSocketId = targetId;
 
             function stopWatching() {
                 if (pc) {
                     pc.close();
                     pc = null;
                 }
-                socket.emit('leave_watch', {
-                    targetSocketId: targetId,
-                    streamType: type
-                });
+                if (currentTargetSocketId) {
+                    socket.emit('leave_watch', {
+                        targetSocketId: currentTargetSocketId,
+                        streamType: type
+                    });
+                }
                 pendingCandidates = [];
                 isWatching = false;
                 videoEl.srcObject = null;
@@ -49,8 +53,15 @@
 
                 statusEl.innerText = 'Connecting to stream...';
                 statusEl.style.display = 'block';
+                if (!currentTargetSocketId) {
+                    statusEl.innerText = 'Target device offline';
+                    statusEl.style.display = 'block';
+                    isWatching = false;
+                    return;
+                }
+
                 socket.emit('join_watch', {
-                    targetSocketId: targetId,
+                    targetSocketId: currentTargetSocketId,
                     streamType: type,
                     deviceName: 'OBS Viewer'
                 });
@@ -78,7 +89,7 @@
                 pc.onicecandidate = (event) => {
                     if (event.candidate) {
                         socket.emit('signal', {
-                            to: targetId,
+                            to: currentTargetSocketId,
                             signal: event.candidate,
                             streamType: type
                         });
@@ -97,7 +108,7 @@
                 await pc.setLocalDescription(offer);
 
                 socket.emit('signal', {
-                    to: targetId,
+                    to: currentTargetSocketId,
                     signal: pc.localDescription,
                     streamType: type
                 });
@@ -109,7 +120,7 @@
             });
 
             socket.on('signal', async (data) => {
-                if (data.from !== targetId || data.streamType !== type) return;
+                if (data.from !== currentTargetSocketId || data.streamType !== type) return;
                 
                 try {
                     if (data.signal.type === 'answer') {
@@ -131,9 +142,17 @@
             });
 
             socket.on('room_status', (devices) => {
-                const target = devices.find(d => d.socketId === targetId);
+                const target = targetDeviceId
+                    ? devices.find(d => d.deviceId === targetDeviceId)
+                    : devices.find(d => d.socketId === targetId);
+                const nextTargetSocketId = target?.socketId || null;
                 const isSharing = target && target.sharing && target.sharing[type];
-                
+
+                if (nextTargetSocketId !== currentTargetSocketId) {
+                    if (isWatching) stopWatching();
+                    currentTargetSocketId = nextTargetSocketId;
+                }
+
                 if (isSharing && !isWatching) {
                     startWatching();
                 } else if (!isSharing && isWatching) {
