@@ -206,7 +206,7 @@ function Watch() {
             autoPlay 
             playsInline 
             ref={el => { if (el) el.srcObject = stream; }}
-            className="max-w-full max-h-full object-contain"
+            className="w-full h-full object-contain"
           />
         ) : (
           <div className="flex flex-col items-center gap-4 text-white">
