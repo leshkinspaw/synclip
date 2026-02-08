@@ -334,7 +334,13 @@ export default function Devices() {
             </div>
           </div>
 
-          <Button onClick={handleLeaveGroup} variant="destructive" className="w-full gap-2" size="sm">
+          <Button
+            onClick={handleLeaveGroup}
+            variant="destructive"
+            className="w-full gap-2"
+            size="sm"
+            disabled={!seedPhrase}
+          >
             <LogOut className="w-4 h-4" /> Leave Sync Group
           </Button>
         </CardContent>
