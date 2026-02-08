@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SynClip OBS Viewer</title>
+    <title>SynClip OBS</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: black; overflow: hidden; display: flex; justify-content: center; align-items: center; color: white; font-family: sans-serif; }
         video { width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -63,7 +63,7 @@
                 socket.emit('join_watch', {
                     targetSocketId: currentTargetSocketId,
                     streamType: type,
-                    deviceName: 'OBS Viewer'
+                    deviceName: 'OBS'
                 });
 
                 pc = new RTCPeerConnection({
@@ -116,7 +116,7 @@
 
             socket.on('connect', () => {
                 statusEl.innerText = 'Connected to server, joining room...';
-                socket.emit('join', { room: roomId, deviceName: 'OBS Viewer' });
+                socket.emit('join', { room: roomId, deviceName: 'OBS' });
             });
 
             socket.on('signal', async (data) => {

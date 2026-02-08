@@ -218,47 +218,53 @@ export default function Devices() {
           <CardDescription>{devices.length} device(s) in group</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-2">
             {devices.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">No other devices online.</p>
             )}
-            {devices.map((device) => (
-              <div key={device.socketId} className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium flex items-center gap-2">
-                    {device.deviceName}
-                    {device.socketId === myId && <span className="text-[10px] bg-primary text-primary-foreground px-1 rounded">THIS DEVICE</span>}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground font-mono">{device.socketId}</span>
-                </div>
-                
-                {device.socketId !== myId && (
-                  <div className="flex gap-1">
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8" 
-                        onClick={() => handlePing(device.socketId)}
-                        title="Check Connection"
-                    >
-                      {pings[device.socketId] === 'pending' ? <RefreshCcw className="w-4 h-4 animate-spin" /> :
-                       pings[device.socketId] === 'success' ? <CheckCircle2 className="w-4 h-4 text-success" /> :
-                       pings[device.socketId] === 'timeout' ? <XCircle className="w-4 h-4 text-destructive" /> :
-                       <Send className="w-4 h-4" />}
-                    </Button>
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-destructive" 
-                        onClick={() => handleExclude(device.socketId, device.deviceName)}
-                        title="Exclude Device"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+            {devices.map((device) => {
+              const isObsViewer = device.deviceName === 'OBS';
+              const showActions = device.socketId !== myId && !isObsViewer;
+
+              return (
+                <div key={device.socketId} className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium flex items-center gap-2">
+                      {device.socketId === myId && <span className="text-[10px] bg-primary text-primary-foreground px-1 rounded">THIS DEVICE</span>}
+                      {isObsViewer && <span className="text-[10px] bg-primary text-primary-foreground px-1 rounded">OBS</span>}
+                      {!isObsViewer && device.deviceName}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-mono">{device.socketId}</span>
                   </div>
-                )}
-              </div>
-            ))}
+                  
+                  {showActions && (
+                    <div className="flex gap-1">
+                      <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8" 
+                          onClick={() => handlePing(device.socketId)}
+                          title="Check Connection"
+                      >
+                        {pings[device.socketId] === 'pending' ? <RefreshCcw className="w-4 h-4 animate-spin" /> :
+                         pings[device.socketId] === 'success' ? <CheckCircle2 className="w-4 h-4 text-success" /> :
+                         pings[device.socketId] === 'timeout' ? <XCircle className="w-4 h-4 text-destructive" /> :
+                         <Send className="w-4 h-4" />}
+                      </Button>
+                      <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-destructive" 
+                          onClick={() => handleExclude(device.socketId, device.deviceName)}
+                          title="Exclude Device"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
