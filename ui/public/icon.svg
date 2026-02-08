@@ -6,8 +6,8 @@
       x1="0"  y1="0"
       x2="100" y2="100">
 
-      <stop offset="0%"   stop-color="#8B5CF6"/>
-      <stop offset="100%" stop-color="#6D28D9"/>
+      <stop offset="10%"   stop-color="#d734f7"/>
+      <stop offset="100%" stop-color="#ab0ed2"/>
     </linearGradient>
   </defs>
   
