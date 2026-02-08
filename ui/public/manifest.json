@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "SynClip",
+  "name": "ShareBridge",
   "version": "1.0.0",
   "description": "Sync clipboard between devices with P2P encryption",
   "permissions": [

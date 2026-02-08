@@ -11,7 +11,7 @@ export const validateSeedPhrase = (mnemonic) => {
 
 export const deriveKey = (mnemonic) => {
   // Use PBKDF2 to derive a key from the mnemonic
-  const salt = "synclip-salt"; // In a real app, this might be fixed or shared
+  const salt = "sharebridge-salt"; // In a real app, this might be fixed or shared
   return CryptoJS.PBKDF2(mnemonic, salt, {
     keySize: 256 / 32,
     iterations: 1000

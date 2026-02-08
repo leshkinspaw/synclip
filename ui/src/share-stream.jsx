@@ -325,7 +325,7 @@ function ShareStream() {
   );
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="synclip-theme">
+    <ThemeProvider defaultTheme="dark" storageKey="sharebridge-theme">
       <div className={cn(
         "bg-background text-foreground flex items-center justify-center",
         isWindow ? "min-h-0 p-2" : "min-h-screen p-4"

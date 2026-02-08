@@ -183,7 +183,7 @@ async function initSync() {
       browser.notifications.create({
         type: 'basic',
         iconUrl: 'icon48.png',
-        title: 'SynClip',
+        title: 'ShareBridge',
         message: 'This device was excluded from the sync group.'
       });
       // Clear seed phrase to effectively leave
@@ -215,7 +215,7 @@ async function initSync() {
               browser.notifications.create({
                   type: 'basic',
                   iconUrl: 'icon48.png',
-                  title: 'SynClip',
+                  title: 'ShareBridge',
                   message: 'Clipboard updated from another device'
               });
             }
@@ -262,7 +262,7 @@ async function pollClipboard() {
 }
 
 browser.runtime.onInstalled.addListener(() => {
-  console.log("SynClip Extension Installed");
+  console.log("ShareBridge Extension Installed");
   initSync();
 });
 

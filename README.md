@@ -1,4 +1,4 @@
-# SynClip
+# ShareBridge
 
 Sync clipboard between devices with P2P encryption.
 
@@ -32,7 +32,7 @@ The build output will be in `ui/dist`.
 4. Select the `ui/dist` directory.
 
 ### 4. Configuration
-1. Click the SynClip extension icon.
+1. Click the ShareBridge extension icon.
 2. Go to **Settings** and ensure the Server IP is correct (e.g., `localhost:3000`).
 3. Go to **Devices** and either generate a new seed phrase or enter an existing one.
 4. Click **Save & Sync**.

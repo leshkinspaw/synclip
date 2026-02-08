@@ -8,7 +8,7 @@ const ThemeProviderContext = createContext({
 export function ThemeProvider({
   children,
   defaultTheme = "light",
-  storageKey = "synclip-theme",
+  storageKey = "sharebridge-theme",
   ...props
 }) {
   const [theme, setTheme] = useState(

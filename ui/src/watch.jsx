@@ -199,7 +199,7 @@ function Watch() {
   }
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="synclip-theme">
+    <ThemeProvider defaultTheme="dark" storageKey="sharebridge-theme">
       <div className="h-screen w-screen bg-black flex items-center justify-center overflow-hidden">
         {stream ? (
           <video 

@@ -46,7 +46,7 @@ function App() {
   }, [fetchStatus, updateStatus]);
 
   return (
-    <ThemeProvider defaultTheme="system" storageKey="synclip-theme">
+    <ThemeProvider defaultTheme="system" storageKey="sharebridge-theme">
       <TooltipProvider>
         <div className={cn(
             "bg-background text-foreground flex flex-col overflow-hidden",
