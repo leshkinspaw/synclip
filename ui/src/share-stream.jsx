@@ -236,7 +236,7 @@ function ShareStream() {
               <Monitor className="w-4 h-4" /> Screen
             </h4>
             {streams.screen && (
-              <Button variant="destructive" size="xs" className="h-7 px-2 text-[10px]" onClick={() => stopStreaming('screen')}>
+              <Button variant="destructive" size="xs" className="h-5 px-2 text-[10px]" onClick={() => stopStreaming('screen')}>
                 Stop
               </Button>
             )}
@@ -266,7 +266,7 @@ function ShareStream() {
               <Camera className="w-4 h-4" /> Camera
             </h4>
             {streams.camera && (
-              <Button variant="destructive" size="xs" className="h-7 px-2 text-[10px]" onClick={() => stopStreaming('camera')}>
+              <Button variant="destructive" size="xs" className="h-5 px-2 text-[10px]" onClick={() => stopStreaming('camera')}>
                 Stop
               </Button>
             )}
